@@ -1,0 +1,27 @@
+package com.example.projectPi.models;
+
+public enum UserType {
+    REFEREE("referee"),
+    PLAYER("player"),
+    COACH("coach"),
+    SPONSOR("sponsor");
+
+    private final String value;
+
+    UserType(String value) {
+        this.value = value;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public static UserType fromValue(String value) {
+        for (UserType type : UserType.values()) {
+            if (type.value.equalsIgnoreCase(value)) {
+                return type;
+            }
+        }
+        throw new IllegalArgumentException("Unknown UserType: " + value);
+    }
+}
