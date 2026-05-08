@@ -11,164 +11,188 @@ import { Event, EventRequest, EventType } from '../../models/event.model';
   template: `
     @if (isOpen()) {
       <div class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-        <div class="form-container">
-          <h2 class="text-2xl font-bold text-gray-900 mb-6">
-            {{ isEditMode() ? 'Modifier l\'Événement' : 'Créer un Nouvel Événement' }}
-          </h2>
+        <div class="form-container" style="max-width: 900px; width: 100%; border: 1px solid #d9e2ef; box-shadow: 0 20px 50px rgba(16, 32, 51, 0.18);">
+          <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-900" style="margin-bottom: 0.35rem;">
+                {{ isEditMode() ? '✏️ Modifier l\'événement' : '✨ Créer un nouvel événement' }}
+              </h2>
+              <p class="text-sm" style="color:#5b6b7e; margin: 0;">
+                Renseigne les informations principales puis valide pour enregistrer.
+              </p>
+            </div>
+            <button type="button" (click)="onCancel()" class="btn-secondary" style="padding: 0.45rem 0.8rem;">✕</button>
+          </div>
 
           @if (error()) {
-            <div class="mb-4 bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded-lg">
+            <div class="mb-4 bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded-lg" style="font-weight: 600;">
               {{ error() }}
             </div>
           }
 
           <form (ngSubmit)="onSubmit()" class="space-y-5">
-            <!-- Event Name -->
-            <div class="form-group required">
-              <label>Nom de l'Événement (3-100 caractères)</label>
-              <input
-                type="text"
-                [(ngModel)]="formData.nom"
-                (blur)="validateField('nom')"
-                name="nom"
-                required
-                minlength="3"
-                maxlength="100"
-                placeholder="Entrez le nom de l'événement"
-              />
-              <div class="char-count">{{ (formData.nom || '').length }}/100</div>
-              @if (fieldErrors()['nom']) {
-                <p class="form-error">{{ fieldErrors()['nom'] }}</p>
+            <div class="dashboard-card" style="padding: 1rem; border-radius: 14px; background: #ffffff;">
+              <h3 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.85rem; color: #20324a;">Informations générales</h3>
+              <div class="form-group required">
+                <label style="font-weight: 700; color: #20324a;">📝 Nom de l'événement (3-100 caractères)</label>
+                <div class="input-with-icon">
+                  <span class="input-icon">🏷️</span>
+                  <input
+                    class="input-field"
+                    type="text"
+                    [(ngModel)]="formData.nom"
+                    (blur)="validateField('nom')"
+                    name="nom"
+                    required
+                    minlength="3"
+                    maxlength="100"
+                    placeholder="Ex: Tournoi Régional Street League"
+                  />
+                </div>
+                <div class="char-count">{{ (formData.nom || '').length }}/100</div>
+                @if (fieldErrors()['nom']) {
+                  <p class="form-error">{{ fieldErrors()['nom'] }}</p>
+                }
+              </div>
+
+              <div class="form-group">
+                <label style="font-weight: 700; color: #20324a;">📄 Description (max 500 caractères)</label>
+                <textarea
+                  class="input-field"
+                  [(ngModel)]="formData.description"
+                  (blur)="validateField('description')"
+                  name="description"
+                  rows="4"
+                  maxlength="500"
+                  placeholder="Décris le contexte de l'événement, les objectifs et les équipes concernées"
+                ></textarea>
+                <div class="char-count">{{ (formData.description || '').length }}/500</div>
+                @if (fieldErrors()['description']) {
+                  <p class="form-error">{{ fieldErrors()['description'] }}</p>
+                }
+              </div>
+            </div>
+
+            <div class="dashboard-card" style="padding: 1rem; border-radius: 14px; background: #ffffff;">
+              <h3 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.85rem; color: #20324a;">Planification et paramètres</h3>
+              <div class="form-row">
+                <div class="form-group required">
+                  <label style="font-weight: 700; color: #20324a;">📅 Date de début</label>
+                  <input
+                    class="input-field"
+                    type="date"
+                    [(ngModel)]="formData.dateDebut"
+                    (blur)="validateField('dateDebut')"
+                    name="dateDebut"
+                    required
+                    [min]="minDate"
+                    (change)="validateDates()"
+                  />
+                  @if (fieldErrors()['dateDebut']) {
+                    <p class="form-error">{{ fieldErrors()['dateDebut'] }}</p>
+                  }
+                </div>
+                <div class="form-group required">
+                  <label style="font-weight: 700; color: #20324a;">🗓️ Date de fin</label>
+                  <input
+                    class="input-field"
+                    type="date"
+                    [(ngModel)]="formData.dateFin"
+                    (blur)="validateField('dateFin')"
+                    name="dateFin"
+                    required
+                    [min]="formData.dateDebut"
+                    (change)="validateDates()"
+                  />
+                  @if (fieldErrors()['dateFin']) {
+                    <p class="form-error">{{ fieldErrors()['dateFin'] }}</p>
+                  }
+                </div>
+              </div>
+
+              @if (dateError()) {
+                <div class="bg-orange-50 border border-orange-300 text-orange-800 px-4 py-3 rounded-lg text-sm" style="font-weight: 600; margin-bottom: 0.9rem;">
+                  {{ dateError() }}
+                </div>
               }
-            </div>
 
-            <!-- Description -->
-            <div class="form-group">
-              <label>Description (max 500 caractères)</label>
-              <textarea
-                [(ngModel)]="formData.description"
-                (blur)="validateField('description')"
-                name="description"
-                rows="4"
-                maxlength="500"
-                placeholder="Décrivez votre événement"
-              ></textarea>
-              <div class="char-count">{{ (formData.description || '').length }}/500</div>
-              @if (fieldErrors()['description']) {
-                <p class="form-error">{{ fieldErrors()['description'] }}</p>
-              }
-            </div>
-
-            <!-- Dates Row -->
-            <div class="form-row">
-              <div class="form-group required">
-                <label>Date de Début (aujourd'hui ou plus tard)</label>
-                <input
-                  type="date"
-                  [(ngModel)]="formData.dateDebut"
-                  (blur)="validateField('dateDebut')"
-                  name="dateDebut"
-                  required
-                  [min]="minDate"
-                  (change)="validateDates()"
-                />
-                @if (fieldErrors()['dateDebut']) {
-                  <p class="form-error">{{ fieldErrors()['dateDebut'] }}</p>
-                }
-              </div>
-              <div class="form-group required">
-                <label>Date de Fin (après la date de début)</label>
-                <input
-                  type="date"
-                  [(ngModel)]="formData.dateFin"
-                  (blur)="validateField('dateFin')"
-                  name="dateFin"
-                  required
-                  [min]="formData.dateDebut"
-                  (change)="validateDates()"
-                />
-                @if (fieldErrors()['dateFin']) {
-                  <p class="form-error">{{ fieldErrors()['dateFin'] }}</p>
-                }
+              <div class="form-row">
+                <div class="form-group required">
+                  <label style="font-weight: 700; color: #20324a;">🏁 Type d'événement</label>
+                  <select
+                    class="input-field"
+                    [(ngModel)]="formData.type"
+                    name="type"
+                    required
+                  >
+                    <option value="">Sélectionnez un type</option>
+                    <option value="LEAGUE">LIGUE</option>
+                    <option value="FRIENDLY">AMICAL</option>
+                  </select>
+                  @if (fieldErrors()['type']) {
+                    <p class="form-error">{{ fieldErrors()['type'] }}</p>
+                  }
+                </div>
+                <div class="form-group required">
+                  <label style="font-weight: 700; color: #20324a;">⚽ ID du sport</label>
+                  <div class="input-with-icon">
+                    <span class="input-icon">🧭</span>
+                    <input
+                      class="input-field"
+                      type="text"
+                      [(ngModel)]="formData.sportId"
+                      (blur)="validateField('sportId')"
+                      name="sportId"
+                      required
+                      placeholder="Ex: football, basketball"
+                    />
+                  </div>
+                  @if (fieldErrors()['sportId']) {
+                    <p class="form-error">{{ fieldErrors()['sportId'] }}</p>
+                  }
+                </div>
               </div>
             </div>
 
-            @if (dateError()) {
-              <div class="bg-orange-50 border border-orange-300 text-orange-800 px-4 py-3 rounded-lg text-sm">
-                {{ dateError() }}
-              </div>
-            }
-
-            <!-- Type and Sport Row -->
-            <div class="form-row">
-              <div class="form-group required">
-                <label>Type d'Événement</label>
-                <select
-                  [(ngModel)]="formData.type"
-                  name="type"
-                  required
-                >
-                  <option value="">Sélectionnez un type</option>
-                  <option value="LEAGUE">LIGUE</option>
-                  <option value="FRIENDLY">AMICAL</option>
-                </select>
-                @if (fieldErrors()['type']) {
-                  <p class="form-error">{{ fieldErrors()['type'] }}</p>
-                }
-              </div>
-              <div class="form-group required">
-                <label>ID du Sport</label>
-                <input
-                  type="text"
-                  [(ngModel)]="formData.sportId"
-                  (blur)="validateField('sportId')"
-                  name="sportId"
-                  required
-                  placeholder="Ex: football, basketball"
-                />
-                @if (fieldErrors()['sportId']) {
-                  <p class="form-error">{{ fieldErrors()['sportId'] }}</p>
+            <div class="dashboard-card" style="padding: 1rem; border-radius: 14px; background: #ffffff;">
+              <h3 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.85rem; color: #20324a;">Équipes participantes</h3>
+              <div class="form-group required" style="margin-bottom: 0;">
+                <label style="font-weight: 700; color: #20324a;">👥 IDs des équipes (minimum 2)</label>
+                <div class="border-2 rounded-lg p-3 min-h-14 flex flex-wrap gap-2 items-start bg-gray-50" [class.border-green-400]="formData.teamsIds.length >= 2" [class.border-red-400]="formData.teamsIds.length < 2 && fieldErrors()['teamsIds']" [class.border-gray-300]="formData.teamsIds.length === 0 || !fieldErrors()['teamsIds']">
+                  @for (team of formData.teamsIds; track $index) {
+                    <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2 font-medium">
+                      {{ team }}
+                      <button
+                        type="button"
+                        (click)="removeTeam($index)"
+                        class="cursor-pointer hover:text-red-200 font-bold text-lg leading-none"
+                        aria-label="Retirer équipe"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  }
+                  <input
+                    type="text"
+                    #teamInput
+                    (keyup.enter)="addTeam(teamInput.value); teamInput.value = ''"
+                    placeholder="Ajouter un ID équipe puis Entrée"
+                    class="flex-1 outline-none min-w-48 bg-transparent text-gray-900 placeholder-gray-500"
+                  />
+                </div>
+                <div class="form-help">
+                  {{ formData.teamsIds.length }} équipe(s) ajoutée(s)
+                  @if (formData.teamsIds.length < 2) {
+                    <span class="text-red-600 font-semibold">(minimum requis: 2)</span>
+                  }
+                </div>
+                @if (fieldErrors()['teamsIds']) {
+                  <p class="form-error">{{ fieldErrors()['teamsIds'] }}</p>
                 }
               </div>
             </div>
 
-            <!-- Teams Selection -->
-            <div class="form-group required">
-              <label>Équipes Participantes (minimum 2 équipes)</label>
-              <div class="border-2 rounded-lg p-3 min-h-14 flex flex-wrap gap-2 items-start bg-gray-50" [class.border-green-400]="formData.teamsIds.length >= 2" [class.border-red-400]="formData.teamsIds.length < 2 && fieldErrors()['teamsIds']" [class.border-gray-300]="formData.teamsIds.length === 0 || !fieldErrors()['teamsIds']">
-                @for (team of formData.teamsIds; track $index) {
-                  <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2 font-medium">
-                    {{ team }}
-                    <button
-                      type="button"
-                      (click)="removeTeam($index)"
-                      class="cursor-pointer hover:text-red-200 font-bold text-lg leading-none"
-                    >
-                      ×
-                    </button>
-                  </span>
-                }
-                <input
-                  type="text"
-                  #teamInput
-                  (keyup.enter)="addTeam(teamInput.value); teamInput.value = ''"
-                  placeholder="Tapez l'ID de l'équipe et appuyez sur Entrée"
-                  class="flex-1 outline-none min-w-48 bg-transparent text-gray-900 placeholder-gray-500"
-                />
-              </div>
-              <div class="form-help">
-                {{ formData.teamsIds.length }} équipes ajoutées
-                @if (formData.teamsIds.length < 2) {
-                  <span class="text-red-600 font-semibold">(besoin d'au moins 2)</span>
-                }
-              </div>
-              @if (fieldErrors()['teamsIds']) {
-                <p class="form-error">{{ fieldErrors()['teamsIds'] }}</p>
-              }
-            </div>
-
-            <!-- Buttons -->
-            <div class="button-group" style="margin-top: 2rem; gap: 1rem;">
+            <div class="button-group" style="margin-top: 1.5rem; gap: 0.8rem; justify-content: flex-end;">
               <button
                 type="button"
                 (click)="onCancel()"
@@ -181,7 +205,7 @@ import { Event, EventRequest, EventType } from '../../models/event.model';
                 [disabled]="loading() || !isFormValid()"
                 class="btn-primary"
               >
-                {{ loading() ? 'Sauvegarde...' : 'Enregistrer' }}
+                {{ loading() ? '⏳ Sauvegarde...' : '💾 Enregistrer' }}
               </button>
             </div>
           </form>
