@@ -1,8 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StatistiquesService } from '../../services/statistiques.service';
 import { Statistiques } from '../../models/statistiques.model';
+import { finalize } from 'rxjs';
 
 @Component({
   selector: 'app-statistiques',
@@ -20,7 +21,10 @@ export class StatistiquesComponent implements OnInit {
   error: string = '';
   filterBy: 'all' | 'team' | 'sport' = 'all';
 
-  constructor(private statistiquesService: StatistiquesService) {}
+  constructor(
+    private statistiquesService: StatistiquesService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.loadAllStatistiques();
@@ -29,15 +33,18 @@ export class StatistiquesComponent implements OnInit {
   loadAllStatistiques(): void {
     this.loading = true;
     this.error = '';
-    this.statistiquesService.getAll().subscribe({
+    this.statistiquesService.getAll().pipe(
+      finalize(() => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      })
+    ).subscribe({
       next: (data) => {
         this.statistiques = data;
-        this.loading = false;
       },
       error: (err) => {
         this.error = 'Erreur lors du chargement des statistiques';
         console.error(err);
-        this.loading = false;
       }
     });
   }
@@ -50,15 +57,18 @@ export class StatistiquesComponent implements OnInit {
 
     this.loading = true;
     this.error = '';
-    this.statistiquesService.getByTeamAndSport(this.teamId, this.sportId).subscribe({
+    this.statistiquesService.getByTeamAndSport(this.teamId, this.sportId).pipe(
+      finalize(() => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      })
+    ).subscribe({
       next: (data) => {
         this.selectedStatistiques = data;
-        this.loading = false;
       },
       error: (err) => {
         this.error = 'Statistiques non trouvées pour ces critères';
         console.error(err);
-        this.loading = false;
       }
     });
   }
@@ -71,18 +81,21 @@ export class StatistiquesComponent implements OnInit {
 
     this.loading = true;
     this.error = '';
-    this.statistiquesService.getByTeam(this.teamId).subscribe({
+    this.statistiquesService.getByTeam(this.teamId).pipe(
+      finalize(() => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      })
+    ).subscribe({
       next: (data) => {
         this.statistiques = data;
         if (data.length > 0) {
           this.selectedStatistiques = data[0];
         }
-        this.loading = false;
       },
       error: (err) => {
         this.error = 'Statistiques non trouvées pour cette équipe';
         console.error(err);
-        this.loading = false;
       }
     });
   }
@@ -95,18 +108,21 @@ export class StatistiquesComponent implements OnInit {
 
     this.loading = true;
     this.error = '';
-    this.statistiquesService.getBySport(this.sportId).subscribe({
+    this.statistiquesService.getBySport(this.sportId).pipe(
+      finalize(() => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      })
+    ).subscribe({
       next: (data) => {
         this.statistiques = data;
         if (data.length > 0) {
           this.selectedStatistiques = data[0];
         }
-        this.loading = false;
       },
       error: (err) => {
         this.error = 'Statistiques non trouvées pour ce sport';
         console.error(err);
-        this.loading = false;
       }
     });
   }

@@ -21,16 +21,32 @@
         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
       />
     </div>
-    <div class="flex gap-4">
-      <button
-        (click)="selectedFilter.set('ALL')"
-        [class.bg-blue-600]="selectedFilter() === 'ALL'"
-        [class.text-white]="selectedFilter() === 'ALL'"
-        [class.bg-gray-200]="selectedFilter() !== 'ALL'"
-        [class.text-gray-700]="selectedFilter() !== 'ALL'"
-        class="px-5 py-2 rounded-lg font-medium transition whitespace-nowrap"
+    <div class="min-w-[180px]">
+      <select
+        [value]="selectedSport()"
+        (change)="onSportChange($event)"
+        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white"
       >
-        All
+        <option value="ALL">All sports</option>
+        @for (sport of availableSports(); track sport) {
+          <option [value]="sport">{{ sport }}</option>
+        }
+      </select>
+    </div>
+    <div class="min-w-[180px]">
+      <input
+        type="date"
+        [value]="selectedDate()"
+        (change)="onDateChange($event)"
+        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white"
+      />
+    </div>
+    <div class="flex gap-4 items-center">
+      <button
+        (click)="clearFilters()"
+        class="px-5 py-2 rounded-lg font-medium transition whitespace-nowrap bg-gray-100 text-gray-700 hover:bg-gray-200"
+      >
+        Reset Filters
       </button>
       <button
         (click)="selectedFilter.set('LEAGUE')"
@@ -51,6 +67,12 @@
         class="px-5 py-2 rounded-lg font-medium transition whitespace-nowrap"
       >
         Friendly
+      </button>
+      <button
+        (click)="clearFilters()"
+        class="px-5 py-2 rounded-lg font-medium transition whitespace-nowrap bg-gray-100 text-gray-700 hover:bg-gray-200"
+      >
+        Clear Filters
       </button>
     </div>
   </div>
@@ -163,6 +185,8 @@
 <app-event-modal
   [isOpen]="showModal()"
   [event]="selectedEvent()"
+  [teamSuggestions]="availableTeamSuggestions()"
+  [sportSuggestions]="availableSports()"
   (close)="closeModal()"
   (saved)="onEventSaved()"
 ></app-event-modal>

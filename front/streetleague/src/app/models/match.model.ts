@@ -1,5 +1,6 @@
 export interface Match {
   id: string;
+  eventId?: string;
   team1Id: string;
   team2Id: string;
   scoreTeam1: number;
@@ -18,6 +19,7 @@ export type MatchStatus = Match['status'];
 export type MatchType = Match['type'];
 
 export interface MatchRequest {
+  eventId?: string;
   team1Id: string;
   team2Id: string;
   scoreTeam1: number;

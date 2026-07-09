@@ -498,8 +498,8 @@ button:disabled {
 .shadow-xl { box-shadow: 0 20px 25px rgba(0, 0, 0, 0.3); }
 
 .text-gray-500 { color: rgba(176, 196, 222, 0.7); }
-.text-gray-700 { color: rgba(255, 255, 255, 0.8); }
-.text-gray-800 { color: #ffffff; }
+.text-gray-700 { color: #000000cc; }
+.text-gray-800 { color: #000000; }
 .text-gray-900 { color: #000000 !important; }
 .text-red-700 { color: #ff6b6b; }
 .text-red-500 { color: #ff6b6b; }

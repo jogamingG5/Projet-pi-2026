@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mongodb-secret
+  namespace: streetleague
+type: Opaque
+stringData:
+  connection-string: "mongodb+srv://USER:PASSWORD@cluster.mongodb.net/streetleague?retryWrites=true&w=majority"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: streetleague
+data:
+  MONGODB_URI: "mongodb://mongodb:27017/streetleague"
+  LOG_LEVEL: "INFO"
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: streetleague-backend-pdb
+  namespace: streetleague
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: streetleague-backend
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: streetleague-frontend-pdb
+  namespace: streetleague
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: streetleague-frontend

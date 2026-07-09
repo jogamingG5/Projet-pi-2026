@@ -1,0 +1,122 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: streetleague
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streetleague-backend
+  namespace: streetleague
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: streetleague-backend
+  template:
+    metadata:
+      labels:
+        app: streetleague-backend
+    spec:
+      containers:
+      - name: backend
+        image: ghcr.io/daly-belguith/streetleague-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8081
+        env:
+        - name: SPRING_DATA_MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: connection-string
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /streetleague/api/events
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /streetleague/api/events
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streetleague-frontend
+  namespace: streetleague
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: streetleague-frontend
+  template:
+    metadata:
+      labels:
+        app: streetleague-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: ghcr.io/daly-belguith/streetleague-frontend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streetleague-backend
+  namespace: streetleague
+spec:
+  selector:
+    app: streetleague-backend
+  ports:
+  - port: 8081
+    targetPort: 8081
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streetleague-frontend
+  namespace: streetleague
+spec:
+  selector:
+    app: streetleague-frontend
+  ports:
+  - port: 80
+    targetPort: 80
+  type: LoadBalancer

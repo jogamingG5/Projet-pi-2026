@@ -1,0 +1,47 @@
+{
+  "dashboard": {
+    "title": "Streetleague Monitoring",
+    "panels": [
+      {
+        "title": "Container Memory Usage",
+        "targets": [
+          {
+            "expr": "container_memory_usage_bytes / 1024 / 1024",
+            "refId": "A"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "Container CPU Usage",
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total[5m]) * 100",
+            "refId": "A"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "HTTP Requests",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[1m])",
+            "refId": "A"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "MongoDB Operations",
+        "targets": [
+          {
+            "expr": "rate(mongodb_operation_count_total[5m])",
+            "refId": "A"
+          }
+        ],
+        "type": "stat"
+      }
+    ]
+  }
+}

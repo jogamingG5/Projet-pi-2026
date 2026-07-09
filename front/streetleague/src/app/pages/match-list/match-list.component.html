@@ -19,17 +19,46 @@
 
   <!-- Filter Buttons -->
   <div class="mb-6 flex gap-4 flex-wrap">
-    @for (filter of filters; track filter) {
-      <button
-        (click)="onFilterChange(filter)"
-        [ngClass]="{
-          'bg-blue-500 text-white': selectedFilter() === filter,
-          'bg-gray-300 text-gray-800': selectedFilter() !== filter
-        }"
-        class="px-5 py-2 rounded-lg transition font-semibold whitespace-nowrap"
+    <div class="min-w-[180px]">
+      <select
+        [value]="selectedSport()"
+        (change)="onSportChange($event)"
+        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white"
       >
-        {{ filter }}
-      </button>
+        <option value="ALL">All sports</option>
+        @for (sport of availableSports(); track sport) {
+          <option [value]="sport">{{ sport }}</option>
+        }
+      </select>
+    </div>
+    <div class="min-w-[180px]">
+      <input
+        type="date"
+        [value]="selectedDate()"
+        (change)="onDateChange($event)"
+        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white"
+      />
+    </div>
+    @for (filter of filters; track filter) {
+      @if (filter === 'ALL') {
+        <button
+          (click)="clearFilters()"
+          class="px-5 py-2 rounded-lg transition font-semibold whitespace-nowrap bg-gray-100 text-gray-700 hover:bg-gray-200"
+        >
+          Reset Filters
+        </button>
+      } @else {
+        <button
+          (click)="onFilterChange(filter)"
+          [ngClass]="{
+            'bg-blue-500 text-white': selectedFilter() === filter,
+            'bg-gray-300 text-gray-800': selectedFilter() !== filter
+          }"
+          class="px-5 py-2 rounded-lg transition font-semibold whitespace-nowrap"
+        >
+          {{ filter }}
+        </button>
+      }
     }
   </div>
 
@@ -101,6 +130,8 @@
   <app-match-modal
     [isOpen]="showModal()"
     [match]="selectedMatch()"
+    [eventSuggestions]="events()"
+    [matchSuggestions]="matches()"
     (close)="closeModal()"
     (saved)="onMatchSaved()"
   ></app-match-modal>

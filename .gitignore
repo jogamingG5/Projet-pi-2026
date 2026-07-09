@@ -1,0 +1,42 @@
+# Java/Maven
+target/
+*.jar
+*.war
+*.class
+*.classpath
+*.project
+.classpath
+.project
+.settings/
+
+# Node/npm
+node_modules/
+dist/
+.angular/
+npm-debug.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+docker-compose.override.yml
+
+# Kubernetes
+kubeconfig
+*.yaml.bak
+
+# Build outputs
+build/
+out/
+
+# OS
+Thumbs.db
+.AppleDouble
+.LSOverride

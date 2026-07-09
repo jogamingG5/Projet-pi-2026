@@ -1,7 +1,9 @@
 import { Component, OnInit, signal, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatchService } from '../../services/match.service';
+import { EventService } from '../../services/event.service';
 import { Match, MatchStatus } from '../../models/match.model';
+import { Event } from '../../models/event.model';
 import { BadgeComponent } from '../../components/badge.component';
 import { LoadingSpinnerComponent } from '../../components/loading-spinner.component';
 import { ConfirmDialogComponent } from '../../components/confirm-dialog.component';
@@ -24,13 +26,17 @@ import { MatchModalComponent } from './match-modal.component';
 })
 export class MatchListComponent implements OnInit {
   private matchService = inject(MatchService);
+  private eventService = inject(EventService);
   @ViewChild(ToastContainerComponent) toastContainer!: ToastContainerComponent;
   @ViewChild(MatchModalComponent) matchModal!: MatchModalComponent;
 
   matches = signal<Match[]>([]);
+  events = signal<Event[]>([]);
   loading = signal(false);
   error = signal<string | null>(null);
   selectedFilter = signal<MatchStatus | 'ALL'>('ALL');
+  selectedSport = signal('ALL');
+  selectedDate = signal('');
   showConfirmDelete = signal(false);
   matchToDelete = signal<string | null>(null);
   showModal = signal(false);
@@ -40,6 +46,7 @@ export class MatchListComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadMatches();
+    this.loadEvents();
   }
 
   loadMatches(): void {
@@ -60,14 +67,88 @@ export class MatchListComponent implements OnInit {
     });
   }
 
+  loadEvents(): void {
+    this.eventService.getEvents().subscribe({
+      next: (data) => {
+        this.events.set(data);
+      },
+      error: () => {
+        this.events.set([]);
+      }
+    });
+  }
+
   getFilteredMatches(): Match[] {
+    let filtered = this.matches();
+
     const filter = this.selectedFilter();
-    if (filter === 'ALL') return this.matches();
-    return this.matches().filter(m => m.status === filter);
+    if (filter !== 'ALL') {
+      filtered = filtered.filter(m => m.status === filter);
+    }
+
+    if (this.selectedSport() !== 'ALL') {
+      filtered = filtered.filter(m => m.sportId === this.selectedSport());
+    }
+
+    if (this.selectedDate()) {
+      filtered = filtered.filter(m => this.normalizeDate(m.date) === this.selectedDate());
+    }
+
+    return filtered;
   }
 
   onFilterChange(filter: MatchStatus | 'ALL'): void {
     this.selectedFilter.set(filter);
+  }
+
+  onSportChange(event: globalThis.Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.selectedSport.set(value);
+  }
+
+  onDateChange(event: globalThis.Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.selectedDate.set(value);
+  }
+
+  clearFilters(): void {
+    this.selectedFilter.set('ALL');
+    this.selectedSport.set('ALL');
+    this.selectedDate.set('');
+  }
+
+  availableTeamSuggestions(): string[] {
+    const selectedEvent = this.events().find(event => event.id === this.selectedMatch()?.eventId);
+    const sport = this.selectedMatch()?.sportId;
+
+    const matchTeams = this.matches()
+      .filter(match => !sport || match.sportId === sport)
+      .flatMap(match => [match.team1Id, match.team2Id]);
+
+    const eventTeams = selectedEvent?.teamsIds || [];
+
+    return [...new Set([...eventTeams, ...matchTeams].filter(Boolean))].sort();
+  }
+
+  availableTerrainSuggestions(): string[] {
+    const sport = this.selectedMatch()?.sportId;
+    return [...new Set(
+      this.matches()
+        .filter(match => !sport || match.sportId === sport)
+        .map(match => match.terrainId)
+        .filter(Boolean)
+    )].sort();
+  }
+
+  availableSports(): string[] {
+    const eventSports = this.events().map(event => event.sportId).filter(Boolean);
+    const matchSports = this.matches().map(match => match.sportId).filter(Boolean);
+    return [...new Set([...eventSports, ...matchSports])].sort();
+  }
+
+  availableEventSuggestions(): Event[] {
+    const sport = this.selectedMatch()?.sportId;
+    return this.events().filter(event => !sport || event.sportId === sport);
   }
 
   openModal(match?: Match): void {
@@ -167,5 +248,29 @@ export class MatchListComponent implements OnInit {
 
   formatTime(timeString: string): string {
     return timeString; // Already in HH:mm format
+  }
+
+  private normalizeDate(dateValue: any): string {
+    if (!dateValue) {
+      return '';
+    }
+
+    if (Array.isArray(dateValue)) {
+      const [year, month, day] = dateValue;
+      return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    }
+
+    if (typeof dateValue === 'string') {
+      return dateValue.split('T')[0];
+    }
+
+    if (dateValue instanceof Date) {
+      const year = dateValue.getFullYear();
+      const month = `${dateValue.getMonth() + 1}`.padStart(2, '0');
+      const day = `${dateValue.getDate()}`.padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    return '';
   }
 }
