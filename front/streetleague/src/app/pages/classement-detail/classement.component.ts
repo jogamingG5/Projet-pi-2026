@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ClassementService } from '../../services/statistiques.service';
@@ -7,11 +7,13 @@ import { EventService } from '../../services/event.service';
 import { MatchService } from '../../services/match.service';
 import { Event } from '../../models/event.model';
 import { Match } from '../../models/match.model';
+import { extractErrorMessage } from '../../utils/http-error';
+import { ExportMenuComponent } from '../../components/export-menu.component';
 
 @Component({
   selector: 'app-classement',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ExportMenuComponent],
   templateUrl: './classement.component.html',
   styleUrls: ['./classement.component.css']
 })
@@ -30,7 +32,8 @@ export class ClassementComponent implements OnInit {
   constructor(
     private classementService: ClassementService,
     private eventService: EventService,
-    private matchService: MatchService
+    private matchService: MatchService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -49,11 +52,12 @@ export class ClassementComponent implements OnInit {
           this.selectedClassement = data[0];
         }
         this.loading = false;
+        this.cdr.markForCheck();
       },
       error: (err) => {
-        this.error = 'Erreur lors du chargement des classements';
-        console.error(err);
+        this.error = extractErrorMessage(err, 'Erreur lors du chargement des classements');
         this.loading = false;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -65,9 +69,11 @@ export class ClassementComponent implements OnInit {
         if (!this.eventId && data.length > 0) {
           this.eventId = data[0].id;
         }
+        this.cdr.markForCheck();
       },
       error: () => {
         this.events = [];
+        this.cdr.markForCheck();
       }
     });
   }
@@ -79,9 +85,11 @@ export class ClassementComponent implements OnInit {
         if (!this.selectedClassement && this.classements.length > 0) {
           this.selectedClassement = this.classements[0];
         }
+        this.cdr.markForCheck();
       },
       error: () => {
         this.matches = [];
+        this.cdr.markForCheck();
       }
     });
   }
@@ -98,13 +106,22 @@ export class ClassementComponent implements OnInit {
       next: (data) => {
         this.selectedClassement = data;
         this.loading = false;
+        this.cdr.markForCheck();
       },
       error: (err) => {
-        this.error = 'Aucun classement trouvé pour ces critères';
-        console.error(err);
+        this.error = extractErrorMessage(err, 'Aucun classement trouvé pour ces critères');
         this.loading = false;
+        this.cdr.markForCheck();
       }
     });
+  }
+
+  /** Export the currently selected classement's event+sport, else all classements. */
+  exportFilters(): Record<string, string | undefined> {
+    return {
+      eventId: this.selectedClassement?.eventId,
+      sportId: this.selectedClassement?.sportId
+    };
   }
 
   getMedalColor(rang: number): string {

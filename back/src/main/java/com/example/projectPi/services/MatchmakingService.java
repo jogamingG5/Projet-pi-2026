@@ -13,7 +13,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.example.projectPi.dto.MatchSuggestion;
+import com.example.projectPi.models.Event;
 import com.example.projectPi.models.Match;
+import com.example.projectPi.repositories.EventRepository;
 import com.example.projectPi.repositories.MatchRepository;
 
 /**
@@ -21,11 +23,13 @@ import com.example.projectPi.repositories.MatchRepository;
  */
 @Service
 public class MatchmakingService {
-    
+
     private final MatchRepository matchRepository;
-    
-    public MatchmakingService(MatchRepository matchRepository) {
+    private final EventRepository eventRepository;
+
+    public MatchmakingService(MatchRepository matchRepository, EventRepository eventRepository) {
         this.matchRepository = matchRepository;
+        this.eventRepository = eventRepository;
     }
     
     /**
@@ -41,7 +45,7 @@ public class MatchmakingService {
                                                   Integer round, String format) {
         // Fetch existing matches to exclude already-played pairs
         List<Match> existingMatches = matchRepository.findAll().stream()
-            .filter(m -> m.getEventId().equals(eventId) && m.getSportId().equals(sportId))
+            .filter(m -> eventId.equals(m.getEventId()) && sportId.equals(m.getSportId()))
             .collect(Collectors.toList());
         
         Set<String> existingPairs = new HashSet<>();
@@ -178,8 +182,8 @@ public class MatchmakingService {
         // Fetch team name, calculate win rate, goals, etc.
         // This would query actual repositories in production
         List<Match> teamMatches = matchRepository.findAll().stream()
-            .filter(m -> m.getEventId().equals(eventId) && m.getSportId().equals(sportId) &&
-                    (m.getTeam1Id().equals(teamId) || m.getTeam2Id().equals(teamId)))
+            .filter(m -> eventId.equals(m.getEventId()) && sportId.equals(m.getSportId()) &&
+                    (teamId.equals(m.getTeam1Id()) || teamId.equals(m.getTeam2Id())))
             .collect(Collectors.toList());
         
         if (teamMatches.isEmpty()) {
@@ -228,12 +232,13 @@ public class MatchmakingService {
     }
     
     /**
-     * Fetch team IDs for an event (stub - would query EventRepository)
+     * Fetch team IDs for an event from its roster (Event.teamsIds)
      */
     private List<String> getTeamIds(String eventId) {
-        // In production: query EventRepository.findById(eventId).getTeamsIds()
-        // For now returning empty list - integration will fill this
-        return new ArrayList<>();
+        return eventRepository.findById(eventId)
+            .map(Event::getTeamsIds)
+            .filter(ids -> ids != null)
+            .orElseGet(ArrayList::new);
     }
     
     /**

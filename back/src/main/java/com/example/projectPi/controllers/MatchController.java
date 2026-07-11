@@ -22,6 +22,8 @@ import com.example.projectPi.dto.TeamStats;
 import com.example.projectPi.models.Match;
 import com.example.projectPi.services.MatchService;
 
+import jakarta.validation.Valid;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -157,7 +159,7 @@ public class MatchController {
     public ResponseEntity<Match> updateMatch(
             @Parameter(description = "ID du match")
             @PathVariable String id,
-            @RequestBody MatchRequest request) {
+            @Valid @RequestBody MatchRequest request) {
         return ResponseEntity.ok(matchService.updateMatch(id, request));
     }
 
@@ -180,10 +182,22 @@ public class MatchController {
         return ResponseEntity.ok(matchService.getAllMatchs());
     }
 
+    @GetMapping("/paged")
+    @Operation(summary = "Matchs paginés",
+               description = "Liste paginée des matchs (page 1-based) avec filtres optionnels sport/statut/date")
+    public ResponseEntity<com.example.projectPi.dto.PagedResponse<Match>> getMatchsPaged(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sportId,
+            @RequestParam(required = false) Match.MatchStatus status,
+            @RequestParam(required = false) LocalDate date) {
+        return ResponseEntity.ok(matchService.getMatchsPaged(page, size, sportId, status, date));
+    }
+
     @PostMapping
     @Operation(summary = "Créer un nouveau match")
     @ApiResponse(responseCode = "201", description = "Match créé")
-    public ResponseEntity<Match> createMatch(@RequestBody MatchRequest request) {
+    public ResponseEntity<Match> createMatch(@Valid @RequestBody MatchRequest request) {
         Match created = matchService.createMatch(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }

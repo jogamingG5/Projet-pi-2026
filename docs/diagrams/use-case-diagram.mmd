@@ -1,0 +1,49 @@
+%% StreetLeague — Use case diagram
+%% Mermaid n'a pas de type "use case" natif : représenté en graph avec un
+%% acteur relié à ses cas d'utilisation (ellipses).
+graph LR
+    actor(("👤 Organisateur"))
+
+    subgraph Événements
+        UC1(["Gérer les événements (CRUD)"])
+        UC2(["Gérer le roster d'équipes"])
+    end
+
+    subgraph Matchs
+        UC3(["Créer / éditer un match"])
+        UC4(["Lier le match à un événement"])
+        UC5(["Terminer un match (saisir le score)"])
+        UC6(["Prédire un résultat"])
+        UC7(["Générer un matchmaking équilibré"])
+    end
+
+    subgraph Suivi
+        UC8(["Consulter les statistiques"])
+        UC9(["Consulter le classement"])
+        UC10(["Consulter les feuilles de match"])
+    end
+
+    subgraph Export
+        UC11(["Exporter CSV / PDF"])
+    end
+
+    actor --> UC1
+    actor --> UC2
+    actor --> UC3
+    actor --> UC5
+    actor --> UC6
+    actor --> UC7
+    actor --> UC8
+    actor --> UC9
+    actor --> UC10
+    actor --> UC11
+
+    %% include / extend relationships
+    UC3 -. "«include»" .-> UC4
+    UC5 -. "«include»" .-> UC8
+    UC5 -. "«include»" .-> UC9
+    UC5 -. "«include»" .-> UC10
+    UC7 -. "«extend»" .-> UC3
+
+    classDef uc fill:#16213a,stroke:#2f7dff,color:#eaf2ff;
+    class UC1,UC2,UC3,UC4,UC5,UC6,UC7,UC8,UC9,UC10,UC11 uc;

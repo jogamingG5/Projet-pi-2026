@@ -241,10 +241,22 @@ public class EventController {
     }
 
     @GetMapping
-    @Operation(summary = "Récupérer tous les événements", 
+    @Operation(summary = "Récupérer tous les événements",
                description = "Retourne la liste complète de tous les événements")
     @ApiResponse(responseCode = "200", description = "Liste des événements")
     public ResponseEntity<List<Event>> getAllEvents() {
         return ResponseEntity.ok(eventService.getAllEvents());
+    }
+
+    @GetMapping("/paged")
+    @Operation(summary = "Événements paginés",
+               description = "Liste paginée des événements (page 1-based) avec filtres optionnels sport/type/recherche")
+    public ResponseEntity<com.example.projectPi.dto.PagedResponse<Event>> getEventsPaged(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "9") int size,
+            @RequestParam(required = false) String sportId,
+            @RequestParam(required = false) Event.EventType type,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(eventService.getEventsPaged(page, size, sportId, type, search));
     }
 }

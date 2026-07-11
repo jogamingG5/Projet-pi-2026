@@ -1,11 +1,1 @@
-.table {
-  width: 100%;
-}
-
-@media (max-width: 768px) {
-  .grid-2,
-  .grid-3,
-  .grid-4 {
-    grid-template-columns: 1fr;
-  }
-}
+/* Styling comes from the shared design system in src/styles.css. */

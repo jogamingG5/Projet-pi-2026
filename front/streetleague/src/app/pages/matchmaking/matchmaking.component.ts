@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatchService } from '../../services/match.service';
 import { EventService } from '../../services/event.service';
 import { Match } from '../../models/match.model';
 import { Event } from '../../models/event.model';
+import { extractErrorMessage } from '../../utils/http-error';
 
 // Model for match suggestions
 interface MatchSuggestion {
@@ -46,14 +47,15 @@ export class MatchmakingComponent implements OnInit {
 
   constructor(
     private matchService: MatchService,
-    private eventService: EventService
+    private eventService: EventService,
+    private cdr: ChangeDetectorRef
   ) {}
-  
+
   ngOnInit(): void {
     this.loadMatches();
     this.loadEvents();
   }
-  
+
   /**
    * Load matches from backend and derive sports/events from live data
    */
@@ -70,9 +72,11 @@ export class MatchmakingComponent implements OnInit {
         if (this.selectedEventId && this.selectedSportId && this.suggestions.length === 0) {
           this.generateSuggestions();
         }
+        this.cdr.markForCheck();
       },
-      error: () => {
-        this.error = 'Unable to load existing matches';
+      error: (err) => {
+        this.error = extractErrorMessage(err, 'Impossible de charger les matchs existants');
+        this.cdr.markForCheck();
       }
     });
   }
@@ -88,9 +92,11 @@ export class MatchmakingComponent implements OnInit {
         if (this.selectedEventId && this.selectedSportId && this.matches.length > 0 && this.suggestions.length === 0) {
           this.generateSuggestions();
         }
+        this.cdr.markForCheck();
       },
       error: () => {
         this.events = [];
+        this.cdr.markForCheck();
       }
     });
   }

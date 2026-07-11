@@ -55,7 +55,8 @@ public class MatchRequest {
     @Schema(description = "ID de l'arbitre", requiredMode = Schema.RequiredMode.REQUIRED)
     private String arbitreId;
     
-    @Schema(description = "ID de l'événement (optionnel)")
+    @NotBlank(message = "Event ID is required")
+    @Schema(description = "ID de l'événement", requiredMode = Schema.RequiredMode.REQUIRED)
     private String eventId;
     
     @NotNull(message = "Match status is required")

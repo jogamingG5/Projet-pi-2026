@@ -10,8 +10,7 @@ import {
   ClassementRequest,
   ClassementEntry
 } from '../models/statistiques.model';
-
-const API_BASE_URL = 'http://localhost:8081/streetleague/api';
+import { API_BASE_URL } from '../utils/constants';
 
 @Injectable({ providedIn: 'root' })
 export class FeuillesDeMatchService {

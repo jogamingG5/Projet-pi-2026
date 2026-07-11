@@ -7,6 +7,8 @@ import { BadgeComponent } from '../../components/badge.component';
 import { LoadingSpinnerComponent } from '../../components/loading-spinner.component';
 import { ConfirmDialogComponent } from '../../components/confirm-dialog.component';
 import { EventModalComponent } from './event-modal.component';
+import { PaginatorComponent } from '../../components/paginator.component';
+import { ExportMenuComponent } from '../../components/export-menu.component';
 
 @Component({
   selector: 'app-event-list',
@@ -17,7 +19,9 @@ import { EventModalComponent } from './event-modal.component';
     BadgeComponent,
     LoadingSpinnerComponent,
     ConfirmDialogComponent,
-    EventModalComponent
+    EventModalComponent,
+    PaginatorComponent,
+    ExportMenuComponent
   ],
   templateUrl: './event-list.component.html',
   styleUrls: ['./event-list.component.css']
@@ -27,7 +31,9 @@ export class EventListComponent implements OnInit {
   @ViewChild(EventModalComponent) eventModal!: EventModalComponent;
 
   events = signal<Event[]>([]);
-  allEvents = signal<Event[]>([]);
+  allEvents = signal<Event[]>([]);      // full set (team/sport suggestions)
+  pagedEventsList = signal<Event[]>([]); // current server page (grid)
+  totalEvents = signal(0);
   loading = signal(false);
   error = signal<string | null>(null);
   showConfirmDelete = signal(false);
@@ -37,60 +43,97 @@ export class EventListComponent implements OnInit {
   searchQuery = signal('');
   selectedFilter = signal<'ALL' | 'LEAGUE' | 'FRIENDLY'>('ALL');
   selectedSport = signal('ALL');
-  selectedDate = signal('');
+
+  // Pagination (server-side)
+  page = signal(1);
+  readonly pageSize = 9;
 
   ngOnInit(): void {
-    console.log('🔥 EventListComponent initialized');
-    this.loadEvents();
+    this.loadPage();
+    this.loadAllEvents();
   }
 
-  filteredEvents() {
-    let filtered = this.allEvents();
-    
-    // Filter by type
-    if (this.selectedFilter() !== 'ALL') {
-      filtered = filtered.filter(e => e.type === this.selectedFilter());
-    }
+  /** Fetch the current page from the server, honoring active filters. */
+  loadPage(): void {
+    this.loading.set(true);
+    this.error.set(null);
 
-    // Filter by sport
-    if (this.selectedSport() !== 'ALL') {
-      filtered = filtered.filter(e => e.sportId === this.selectedSport());
-    }
+    const filters: { sportId?: string; type?: string; search?: string } = {};
+    if (this.selectedSport() !== 'ALL') filters.sportId = this.selectedSport();
+    if (this.selectedFilter() !== 'ALL') filters.type = this.selectedFilter();
+    if (this.searchQuery().trim()) filters.search = this.searchQuery().trim();
 
-    // Filter by date overlap
-    if (this.selectedDate()) {
-      filtered = filtered.filter(e => this.eventMatchesDate(e, this.selectedDate()));
-    }
-    
-    // Filter by search
-    const query = this.searchQuery().toLowerCase();
-    if (query) {
-      filtered = filtered.filter(e => e.nom.toLowerCase().includes(query));
-    }
-    
-    return filtered;
+    this.eventService.getEventsPaged(this.page(), this.pageSize, filters).subscribe({
+      next: (res) => {
+        this.pagedEventsList.set(res.content);
+        this.totalEvents.set(res.totalElements);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.error.set('Failed to load events');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  /** Full set for team/sport suggestions in the modal. */
+  loadAllEvents(): void {
+    this.eventService.getEvents().subscribe({
+      next: (data) => {
+        this.allEvents.set(data);
+        this.events.set(data);
+      },
+      error: () => this.allEvents.set([])
+    });
+  }
+
+  /** Active filters passed to the export endpoint. */
+  exportFilters(): Record<string, string | undefined> {
+    return {
+      sportId: this.selectedSport() !== 'ALL' ? this.selectedSport() : undefined,
+      type: this.selectedFilter() !== 'ALL' ? this.selectedFilter() : undefined
+    };
+  }
+
+  pagedEvents() {
+    return this.pagedEventsList();
+  }
+
+  totalFilteredEvents(): number {
+    return this.totalEvents();
+  }
+
+  onPageChange(page: number): void {
+    this.page.set(page);
+    this.loadPage();
   }
 
   onSearchInputChange(event: any): void {
     const value = (event.target as HTMLInputElement).value;
+    this.page.set(1);
     this.searchQuery.set(value);
+    this.loadPage();
   }
 
   onSportChange(event: globalThis.Event): void {
     const value = (event.target as HTMLSelectElement).value;
+    this.page.set(1);
     this.selectedSport.set(value);
+    this.loadPage();
   }
 
-  onDateChange(event: globalThis.Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.selectedDate.set(value);
+  setTypeFilter(type: 'ALL' | 'LEAGUE' | 'FRIENDLY'): void {
+    this.page.set(1);
+    this.selectedFilter.set(type);
+    this.loadPage();
   }
 
   clearFilters(): void {
+    this.page.set(1);
     this.searchQuery.set('');
     this.selectedFilter.set('ALL');
     this.selectedSport.set('ALL');
-    this.selectedDate.set('');
+    this.loadPage();
   }
 
   availableTeamSuggestions(): string[] {
@@ -101,24 +144,10 @@ export class EventListComponent implements OnInit {
     return [...new Set(this.allEvents().map(event => event.sportId).filter(Boolean))].sort();
   }
 
+  /** Refresh both the current page and the full suggestion set (after save/delete). */
   loadEvents(): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.eventService.getEvents().subscribe({
-      next: (data) => {
-        console.log('✅ Events received:', data.length, 'items');
-        console.log('First event:', data[0]);
-        this.allEvents.set(data);
-        this.events.set(data);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        console.error('❌ Error:', err);
-        this.error.set('Failed to load events');
-        this.loading.set(false);
-      }
-    });
+    this.loadPage();
+    this.loadAllEvents();
   }
 
   openModal(event?: Event): void {
@@ -200,40 +229,5 @@ export class EventListComponent implements OnInit {
     } catch (error) {
       return '--';
     }
-  }
-
-  private eventMatchesDate(event: Event, selectedDate: string): boolean {
-    const filterDate = this.parseToUtcDate(selectedDate);
-    const eventStart = this.parseToUtcDate(event.dateDebut);
-    const eventEnd = this.parseToUtcDate(event.dateFin || event.dateDebut);
-
-    if (!filterDate || !eventStart || !eventEnd) {
-      return false;
-    }
-
-    return filterDate.getTime() >= eventStart.getTime() && filterDate.getTime() <= eventEnd.getTime();
-  }
-
-  private parseToUtcDate(dateValue: any): Date | null {
-    if (dateValue === null || dateValue === undefined || dateValue === '') {
-      return null;
-    }
-
-    if (Array.isArray(dateValue)) {
-      const [year, month, day] = dateValue;
-      return new Date(Date.UTC(year, month - 1, day));
-    }
-
-    if (typeof dateValue === 'string') {
-      const normalized = dateValue.includes('T') ? dateValue : `${dateValue}T00:00:00Z`;
-      const parsed = new Date(normalized);
-      return Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
-
-    if (dateValue instanceof Date) {
-      return new Date(Date.UTC(dateValue.getFullYear(), dateValue.getMonth(), dateValue.getDate()));
-    }
-
-    return null;
   }
 }

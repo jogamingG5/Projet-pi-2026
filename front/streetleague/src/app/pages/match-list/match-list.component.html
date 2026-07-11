@@ -1,200 +1,139 @@
-<div class="min-h-screen bg-gray-100 p-6">
+<div class="dashboard-container">
   <!-- Header -->
-  <div class="flex justify-between items-center mb-8" style="display: flex;flex-direction: row;justify-content: space-between;padding-left: 5px;padding-right: 5px;">
-    <h1 class="text-3xl font-bold text-gray-800">Matches</h1>
-    <button
-      (click)="openModal()"
-      class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-semibold whitespace-nowrap"
-    >
-      + New Match
-    </button>
-  </div>
-  <!-- Error Message -->
-  @if (error()) {
-    <div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-      {{ error() }}
+  <div class="page-header">
+    <div>
+      <span class="page-eyebrow">⚽ Fixtures</span>
+      <h1 class="page-title">Matches</h1>
+      <p class="page-subtitle">Every match is linked to an event. Create, predict and manage fixtures across your leagues.</p>
     </div>
+    <div class="flex gap-2">
+      <app-export-menu dataset="matchs" [filters]="exportFilters()"></app-export-menu>
+      <button (click)="openModal()" class="btn btn-primary">+ New Match</button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
   }
 
-  <!-- Filter Buttons -->
-  <div class="mb-6 flex gap-4 flex-wrap">
-    <div class="min-w-[180px]">
-      <select
-        [value]="selectedSport()"
-        (change)="onSportChange($event)"
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white"
-      >
+  <!-- Filters -->
+  <div class="panel" style="margin-bottom: 1.25rem;">
+    <div class="filter-row">
+      <select [value]="selectedSport()" (change)="onSportChange($event)" style="width:auto; min-width:170px;">
         <option value="ALL">All sports</option>
         @for (sport of availableSports(); track sport) {
           <option [value]="sport">{{ sport }}</option>
         }
       </select>
-    </div>
-    <div class="min-w-[180px]">
-      <input
-        type="date"
-        [value]="selectedDate()"
-        (change)="onDateChange($event)"
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white"
-      />
-    </div>
-    @for (filter of filters; track filter) {
-      @if (filter === 'ALL') {
+      <input type="date" [value]="selectedDate()" (change)="onDateChange($event)" style="width:auto; min-width:170px;" />
+
+      @for (filter of filters; track filter) {
         <button
-          (click)="clearFilters()"
-          class="px-5 py-2 rounded-lg transition font-semibold whitespace-nowrap bg-gray-100 text-gray-700 hover:bg-gray-200"
-        >
-          Reset Filters
-        </button>
-      } @else {
-        <button
+          class="chip"
+          [class.active]="selectedFilter() === filter"
           (click)="onFilterChange(filter)"
-          [ngClass]="{
-            'bg-blue-500 text-white': selectedFilter() === filter,
-            'bg-gray-300 text-gray-800': selectedFilter() !== filter
-          }"
-          class="px-5 py-2 rounded-lg transition font-semibold whitespace-nowrap"
-        >
-          {{ filter }}
-        </button>
+        >{{ filter }}</button>
       }
-    }
+      <button class="btn btn-ghost btn-sm" (click)="clearFilters()">Reset</button>
+    </div>
   </div>
 
+  <!-- Prediction panel (compact) -->
   @if (selectedPrediction()) {
-    <div class="mb-6 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div class="text-xs font-bold uppercase tracking-[0.22em] text-emerald-600">Prediction</div>
-          <h2 class="mt-1 text-xl font-black text-gray-900">{{ selectedPrediction()!.eventName }}</h2>
-          <p class="mt-1 text-sm text-gray-600">
-            Estimated score: {{ selectedPrediction()!.scoreTeam1 }} - {{ selectedPrediction()!.scoreTeam2 }}
-          </p>
+    <div class="panel" style="margin-bottom: 1.25rem; padding: 0.9rem 1.1rem; border-color: rgba(52,211,153,0.35); max-width: 640px;">
+      <div class="flex items-center justify-between gap-3" style="margin-bottom:0.7rem;">
+        <div class="flex items-center gap-2" style="min-width:0;">
+          <span class="badge badge-success">🔮 {{ selectedPrediction()!.confidence }}%</span>
+          <span style="font-weight:800; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            {{ selectedPrediction()!.eventName }}
+          </span>
+          <span style="color:var(--muted); font-size:0.85rem; white-space:nowrap;">
+            · {{ selectedPrediction()!.scoreTeam1 }}–{{ selectedPrediction()!.scoreTeam2 }}
+          </span>
         </div>
-        <button
-          type="button"
-          (click)="closePrediction()"
-          class="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
-        >
-          Close
-        </button>
+        <button type="button" (click)="closePrediction()" class="icon-btn" title="Close">✕</button>
       </div>
 
-      <div class="mt-4 grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
-        <div class="space-y-3">
-          <div>
-            <div class="mb-1 flex justify-between text-sm font-semibold text-gray-700">
-              <span>Team 1 win</span>
-              <span>{{ selectedPrediction()!.probabilities.team1 }}%</span>
-            </div>
-            <div class="h-3 rounded-full bg-gray-200">
-              <div class="h-3 rounded-full bg-emerald-500" [style.width.%]="selectedPrediction()!.probabilities.team1"></div>
-            </div>
+      <div class="space-y-2">
+        <div>
+          <div class="flex justify-between" style="font-size:0.78rem; font-weight:700; color:var(--text-dim); margin-bottom:0.2rem;">
+            <span>Team 1</span><span>{{ selectedPrediction()!.probabilities.team1 }}%</span>
           </div>
-          <div>
-            <div class="mb-1 flex justify-between text-sm font-semibold text-gray-700">
-              <span>Draw</span>
-              <span>{{ selectedPrediction()!.probabilities.draw }}%</span>
-            </div>
-            <div class="h-3 rounded-full bg-gray-200">
-              <div class="h-3 rounded-full bg-amber-400" [style.width.%]="selectedPrediction()!.probabilities.draw"></div>
-            </div>
-          </div>
-          <div>
-            <div class="mb-1 flex justify-between text-sm font-semibold text-gray-700">
-              <span>Team 2 win</span>
-              <span>{{ selectedPrediction()!.probabilities.team2 }}%</span>
-            </div>
-            <div class="h-3 rounded-full bg-gray-200">
-              <div class="h-3 rounded-full bg-blue-500" [style.width.%]="selectedPrediction()!.probabilities.team2"></div>
-            </div>
-          </div>
+          <div class="progress-bar" style="height:0.4rem;"><div class="progress-fill" [style.width.%]="selectedPrediction()!.probabilities.team1" style="background:var(--success);"></div></div>
         </div>
-
-        <div class="rounded-2xl bg-gray-50 p-4">
-          <div class="text-sm font-bold uppercase tracking-[0.18em] text-gray-500">Confidence</div>
-          <div class="mt-2 text-4xl font-black text-gray-900">{{ selectedPrediction()!.confidence }}%</div>
-          <ul class="mt-4 space-y-2 text-sm text-gray-600">
-            @for (reason of selectedPrediction()!.rationale; track reason) {
-              <li>• {{ reason }}</li>
-            }
-          </ul>
+        <div>
+          <div class="flex justify-between" style="font-size:0.78rem; font-weight:700; color:var(--text-dim); margin-bottom:0.2rem;">
+            <span>Draw</span><span>{{ selectedPrediction()!.probabilities.draw }}%</span>
+          </div>
+          <div class="progress-bar" style="height:0.4rem;"><div class="progress-fill" [style.width.%]="selectedPrediction()!.probabilities.draw" style="background:var(--warning);"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between" style="font-size:0.78rem; font-weight:700; color:var(--text-dim); margin-bottom:0.2rem;">
+            <span>Team 2</span><span>{{ selectedPrediction()!.probabilities.team2 }}%</span>
+          </div>
+          <div class="progress-bar" style="height:0.4rem;"><div class="progress-fill" [style.width.%]="selectedPrediction()!.probabilities.team2"></div></div>
         </div>
       </div>
     </div>
   }
 
-  <!-- Loading State -->
+  <!-- Table -->
   @if (loading()) {
     <app-loading-spinner></app-loading-spinner>
   } @else {
-    <!-- Table -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-      @if (getFilteredMatches().length === 0) {
-        <div class="text-center py-12 text-gray-500">
-          <p class="text-lg">No matches found</p>
-        </div>
-      } @else {
-        <table class="w-full">
-          <thead class="bg-gray-200">
+    @if (totalFilteredMatches() === 0) {
+      <div class="panel empty-state">
+        <div class="empty-emoji">🏟️</div>
+        <h3>No matches found</h3>
+        <p>Try adjusting your filters or create a new match.</p>
+      </div>
+    } @else {
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
             <tr>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Teams</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Score</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Date</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Time</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Type</th>
-              <th class="px-6 py-4 text-center text-sm font-semibold text-gray-900">Actions</th>
+              <th>Teams</th>
+              <th>Event</th>
+              <th>Score</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Status</th>
+              <th>Type</th>
+              <th style="text-align:center;">Actions</th>
             </tr>
           </thead>
           <tbody>
-            @for (match of getFilteredMatches(); track match.id; let index = $index) {
-              <tr [class.bg-gray-100]="index % 2 === 0" class="border-t border-gray-200 hover:bg-gray-150 transition">
-                <td class="px-6 py-5 text-sm text-gray-900">
-                  {{ match.team1Id }} vs {{ match.team2Id }}
-                </td>
-                <td class="px-6 py-5 text-sm font-semibold text-gray-900">
-                  {{ match.scoreTeam1 }} - {{ match.scoreTeam2 }}
-                </td>
-                <td class="px-6 py-5 text-sm text-gray-900">{{ formatDate(match.createdAt) }}</td>
-                <td class="px-6 py-5 text-sm text-gray-900">{{ formatTime(match.heure) }}</td>
-                <td class="px-6 py-5 text-sm">
-                  <app-badge [label]="match.status" type="status"></app-badge>
-                </td>
-                <td class="px-6 py-5 text-sm">
-                  <app-badge [label]="match.type" type="type"></app-badge>
-                </td>
-                <td class="px-6 py-5 text-center text-sm">
-                  <div class="flex justify-center gap-3">
-                    <button
-                      (click)="togglePrediction(match)"
-                      class="px-4 py-2 bg-emerald-500 text-white rounded hover:bg-emerald-600 transition text-xs font-semibold"
-                    >
-                      Predict
-                    </button>
-                    <button
-                      (click)="onEditMatch(match)"
-                      class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-xs font-semibold"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      (click)="onDeleteMatch(match.id)"
-                      class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition text-xs font-semibold"
-                    >
-                      Delete
-                    </button>
+            @for (match of pagedMatches(); track match.id) {
+              <tr>
+                <td class="cell-strong">{{ match.team1Id }} <span style="color:var(--muted);">vs</span> {{ match.team2Id }}</td>
+                <td>{{ getEventName(match) }}</td>
+                <td class="cell-strong">{{ match.scoreTeam1 }} – {{ match.scoreTeam2 }}</td>
+                <td>{{ formatDate(match.date) }}</td>
+                <td>{{ formatTime(match.heure) }}</td>
+                <td><app-badge [label]="match.status" type="status"></app-badge></td>
+                <td><app-badge [label]="match.type" type="type"></app-badge></td>
+                <td>
+                  <div class="flex justify-center gap-2">
+                    <button (click)="togglePrediction(match)" class="btn btn-secondary btn-sm">Predict</button>
+                    <button (click)="onEditMatch(match)" class="btn btn-ghost btn-sm">Edit</button>
+                    <button (click)="onDeleteMatch(match.id)" class="btn btn-danger btn-sm">Delete</button>
                   </div>
                 </td>
               </tr>
             }
           </tbody>
         </table>
-      }
-    </div>
+      </div>
+
+      <app-paginator
+        [totalItems]="totalFilteredMatches()"
+        [pageSize]="pageSize"
+        [page]="page()"
+        (pageChange)="onPageChange($event)"
+      ></app-paginator>
+    }
   }
 
-  <!-- Match Modal -->
   <app-match-modal
     [isOpen]="showModal()"
     [match]="selectedMatch()"
@@ -204,7 +143,6 @@
     (saved)="onMatchSaved()"
   ></app-match-modal>
 
-  <!-- Confirm Delete Dialog -->
   <app-confirm-dialog
     [isOpen]="showConfirmDelete()"
     title="Delete Match"
@@ -214,6 +152,5 @@
     (cancelled)="cancelDelete()"
   ></app-confirm-dialog>
 
-  <!-- Toast Container -->
   <app-toast-container></app-toast-container>
 </div>

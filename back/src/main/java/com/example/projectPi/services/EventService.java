@@ -50,6 +50,33 @@ public class EventService {
     }
 
     /**
+     * Liste paginée des événements, avec filtres optionnels (sport, type, recherche nom).
+     * Tri par date de début décroissante. page est 1-based.
+     */
+    public com.example.projectPi.dto.PagedResponse<Event> getEventsPaged(
+            int page, int size, String sportId, Event.EventType type, String search) {
+
+        String query = search == null ? "" : search.trim().toLowerCase();
+
+        List<Event> filtered = eventRepository.findAll().stream()
+            .filter(e -> sportId == null || sportId.isEmpty() || sportId.equals(e.getSportId()))
+            .filter(e -> type == null || e.getType() == type)
+            .filter(e -> query.isEmpty()
+                || (e.getNomEvenement() != null && e.getNomEvenement().toLowerCase().contains(query)))
+            .sorted(java.util.Comparator.comparing(Event::getDateDebut,
+                java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
+            .collect(Collectors.toList());
+
+        int safeSize = size <= 0 ? 9 : size;
+        int safePage = page <= 0 ? 1 : page;
+        int from = Math.min((safePage - 1) * safeSize, filtered.size());
+        int to = Math.min(from + safeSize, filtered.size());
+        List<Event> content = filtered.subList(from, to);
+
+        return new com.example.projectPi.dto.PagedResponse<>(content, safePage, safeSize, filtered.size());
+    }
+
+    /**
      * Récupère un événement par ID
      */
     public Event getEventById(String id) {

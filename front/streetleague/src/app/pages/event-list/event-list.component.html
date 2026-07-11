@@ -1,177 +1,107 @@
-<div class="min-h-screen bg-gray-50 p-6">
-  <!-- Header -->
-  <div class="flex justify-between items-center mb-8" style="display: flex;flex-direction: row;justify-content: space-between;padding-left: 5px;padding-right: 5px;">
-    <h1 class="text-3xl font-bold text-gray-900">Events</h1>
-    <button
-      (click)="openModal()"
-      class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold whitespace-nowrap"
-    >
-      + New Event
-    </button>
+<div class="dashboard-container">
+  <div class="page-header">
+    <div>
+      <span class="page-eyebrow">📅 Competitions</span>
+      <h1 class="page-title">Events</h1>
+      <p class="page-subtitle">Leagues, tournaments and friendlies. Every match belongs to one of these events.</p>
+    </div>
+    <div class="flex gap-2">
+      <app-export-menu dataset="events" [filters]="exportFilters()"></app-export-menu>
+      <button (click)="openModal()" class="btn btn-primary">+ New Event</button>
+    </div>
   </div>
 
-  <!-- Search and Filters -->
-  <div class="flex gap-4 mb-6 flex-wrap">
-    <div class="flex-1 min-w-[250px]">
+  @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+  }
+
+  <!-- Search and filters -->
+  <div class="panel" style="margin-bottom: 1.25rem;">
+    <div class="filter-row">
       <input
         type="text"
-        placeholder="Search events by name..."
+        placeholder="Search events by name…"
         [value]="searchQuery()"
         (input)="onSearchInputChange($event)"
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+        style="flex:1; min-width:220px;"
       />
-    </div>
-    <div class="min-w-[180px]">
-      <select
-        [value]="selectedSport()"
-        (change)="onSportChange($event)"
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white"
-      >
+      <select [value]="selectedSport()" (change)="onSportChange($event)" style="width:auto; min-width:160px;">
         <option value="ALL">All sports</option>
         @for (sport of availableSports(); track sport) {
           <option [value]="sport">{{ sport }}</option>
         }
       </select>
-    </div>
-    <div class="min-w-[180px]">
-      <input
-        type="date"
-        [value]="selectedDate()"
-        (change)="onDateChange($event)"
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white"
-      />
-    </div>
-    <div class="flex gap-4 items-center">
-      <button
-        (click)="clearFilters()"
-        class="px-5 py-2 rounded-lg font-medium transition whitespace-nowrap bg-gray-100 text-gray-700 hover:bg-gray-200"
-      >
-        Reset Filters
-      </button>
-      <button
-        (click)="selectedFilter.set('LEAGUE')"
-        [class.bg-purple-600]="selectedFilter() === 'LEAGUE'"
-        [class.text-white]="selectedFilter() === 'LEAGUE'"
-        [class.bg-gray-200]="selectedFilter() !== 'LEAGUE'"
-        [class.text-gray-700]="selectedFilter() !== 'LEAGUE'"
-        class="px-5 py-2 rounded-lg font-medium transition whitespace-nowrap"
-      >
-        League
-      </button>
-      <button
-        (click)="selectedFilter.set('FRIENDLY')"
-        [class.bg-amber-600]="selectedFilter() === 'FRIENDLY'"
-        [class.text-white]="selectedFilter() === 'FRIENDLY'"
-        [class.bg-gray-200]="selectedFilter() !== 'FRIENDLY'"
-        [class.text-gray-700]="selectedFilter() !== 'FRIENDLY'"
-        class="px-5 py-2 rounded-lg font-medium transition whitespace-nowrap"
-      >
-        Friendly
-      </button>
-      <button
-        (click)="clearFilters()"
-        class="px-5 py-2 rounded-lg font-medium transition whitespace-nowrap bg-gray-100 text-gray-700 hover:bg-gray-200"
-      >
-        Clear Filters
-      </button>
+      <button class="chip" [class.active]="selectedFilter() === 'ALL'" (click)="setTypeFilter('ALL')">All</button>
+      <button class="chip" [class.active]="selectedFilter() === 'LEAGUE'" (click)="setTypeFilter('LEAGUE')">League</button>
+      <button class="chip" [class.active]="selectedFilter() === 'FRIENDLY'" (click)="setTypeFilter('FRIENDLY')">Friendly</button>
+      <button class="btn btn-ghost btn-sm" (click)="clearFilters()">Reset</button>
     </div>
   </div>
 
-  <!-- Error Message -->
-  @if (error()) {
-    <div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-      {{ error() }}
-    </div>
-  }
-
-  <!-- Loading, Error, and Content States -->
   @if (loading()) {
     <app-loading-spinner></app-loading-spinner>
-  } @else if (error() && !loading()) {
-    <div class="flex flex-col items-center justify-center py-20 bg-white rounded-lg border-2 border-red-300">
-      <svg class="w-16 h-16 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 4v2M12 3a9 9 0 110 18 9 9 0 010-18zM12 7a1 1 0 110 2 1 1 0 010-2z"></path>
-      </svg>
-      <h2 class="text-2xl font-bold text-gray-900 mb-2">Unable to load events</h2>
-      <p class="text-gray-600 mb-6 text-center">Make sure your backend is running on http://localhost:8081/streetleague/api</p>
-      <button
-        (click)="loadEvents()"
-        class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-semibold"
-      >
-        Retry
-      </button>
-    </div>
   } @else {
-    <!-- Table -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-      @if (filteredEvents().length === 0) {
-        <div class="text-center py-12 text-gray-500">
-          <p class="text-lg">No events found</p>
-        </div>
-      } @else {
-        <table class="w-full">
-          <thead class="bg-gray-200">
-            <tr>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Name</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Type</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Sport</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Dates</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Teams</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Description</th>
-              <th class="px-6 py-4 text-center text-sm font-semibold text-gray-900">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (event of filteredEvents(); track event.id; let index = $index) {
-              <tr [class.bg-gray-100]="index % 2 === 0" class="border-t border-gray-200 hover:bg-gray-150 transition">
-                <td class="px-6 py-5 text-sm text-gray-900 font-medium">
-                  {{ event.nom }}
-                </td>
-                <td class="px-6 py-5 text-sm text-gray-900">
-                  <app-badge [label]="event.type" type="type"></app-badge>
-                </td>
-                <td class="px-6 py-5 text-sm text-gray-900">
-                  <span class="text-xs bg-gray-100 px-3 py-1 rounded-full">{{ event.sportId }}</span>
-                </td>
-                <td class="px-6 py-5 text-sm text-gray-900">{{ formatDate(event.dateDebut) }} - {{ formatDate(event.dateFin) }}</td>
-                <td class="px-6 py-5 text-sm text-gray-900">
-                  <span class="inline-block bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-medium">{{ event.teamsIds.length || 0 }}</span>
-                </td>
-                <td class="px-6 py-5 text-sm text-gray-600 line-clamp-2">
-                  {{ event.description || '-' }}
-                </td>
-                <td class="px-6 py-5 text-center text-sm">
-                  <div class="flex justify-center gap-3">
-                    <button
-                      (click)="onEditEvent(event)"
-                      class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-xs font-semibold"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      (click)="onDeleteEvent(event.id)"
-                      class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition text-xs font-semibold"
-                    >
-                      Delete
-                    </button>
-                    <button
-                      [routerLink]="['/events', event.id]"
-                      class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition text-xs font-semibold"
-                    >
-                      View
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      }
-    </div>
-  }
-</div>
+    @if (totalFilteredEvents() === 0) {
+      <div class="panel empty-state">
+        <div class="empty-emoji">📭</div>
+        <h3>No events found</h3>
+        <p>Create your first event to start scheduling matches.</p>
+      </div>
+    } @else {
+      <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
+        @for (event of pagedEvents(); track event.id) {
+          <div class="card card-interactive">
+            <div class="flex items-start justify-between gap-2" style="margin-bottom:0.75rem;">
+              <div>
+                <a [routerLink]="['/events', event.id]" style="font-size:1.15rem; font-weight:800; color:var(--text);">{{ event.nom }}</a>
+                <div style="color:var(--muted); font-size:0.85rem; margin-top:0.15rem;">{{ event.sportId }}</div>
+              </div>
+              <app-badge [label]="event.type" type="type"></app-badge>
+            </div>
 
-@if (showConfirmDelete()) {
+            @if (event.description) {
+              <p style="font-size:0.9rem; color:var(--text-dim); margin-bottom:0.85rem; min-height:2.6rem;">{{ event.description }}</p>
+            }
+
+            <div class="flex items-center gap-2" style="font-size:0.85rem; color:var(--muted); margin-bottom:0.85rem;">
+              <span>🗓️ {{ formatDate(event.dateDebut) }}</span>
+              <span>→</span>
+              <span>{{ formatDate(event.dateFin) }}</span>
+            </div>
+
+            <div class="flex flex-wrap gap-1" style="margin-bottom:1rem;">
+              @for (team of event.teamsIds; track team) {
+                <span class="badge badge-neutral">{{ team }}</span>
+              }
+            </div>
+
+            <div class="flex gap-2">
+              <a [routerLink]="['/events', event.id]" class="btn btn-secondary btn-sm">Details</a>
+              <button (click)="onEditEvent(event)" class="btn btn-ghost btn-sm">Edit</button>
+              <button (click)="onDeleteEvent(event.id)" class="btn btn-danger btn-sm">Delete</button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <app-paginator
+        [totalItems]="totalFilteredEvents()"
+        [pageSize]="pageSize"
+        [page]="page()"
+        (pageChange)="onPageChange($event)"
+      ></app-paginator>
+    }
+  }
+
+  <app-event-modal
+    [isOpen]="showModal()"
+    [event]="selectedEvent()"
+    [teamSuggestions]="availableTeamSuggestions()"
+    [sportSuggestions]="availableSports()"
+    (close)="closeModal()"
+    (saved)="onEventSaved()"
+  ></app-event-modal>
+
   <app-confirm-dialog
     [isOpen]="showConfirmDelete()"
     title="Delete Event"
@@ -180,13 +110,4 @@
     (confirmed)="confirmDelete()"
     (cancelled)="cancelDelete()"
   ></app-confirm-dialog>
-}
-
-<app-event-modal
-  [isOpen]="showModal()"
-  [event]="selectedEvent()"
-  [teamSuggestions]="availableTeamSuggestions()"
-  [sportSuggestions]="availableSports()"
-  (close)="closeModal()"
-  (saved)="onEventSaved()"
-></app-event-modal>
+</div>

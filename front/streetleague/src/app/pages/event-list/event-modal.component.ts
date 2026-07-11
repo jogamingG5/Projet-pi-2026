@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EventService } from '../../services/event.service';
 import { Event, EventRequest, EventType } from '../../models/event.model';
+import { extractErrorMessage } from '../../utils/http-error';
 
 @Component({
   selector: 'app-event-modal',
@@ -10,8 +11,8 @@ import { Event, EventRequest, EventType } from '../../models/event.model';
   imports: [CommonModule, FormsModule],
   template: `
     @if (isOpen()) {
-      <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 backdrop-blur-md p-4 sm:items-center">
-        <div class="modal-shell w-full max-w-5xl overflow-hidden max-h-[92vh] flex flex-col">
+      <div class="modal-overlay">
+        <div class="modal-shell" style="max-width: 64rem;">
           <div class="modal-header">
             <div>
               <div class="modal-eyebrow">Event editor</div>
@@ -246,241 +247,6 @@ import { Event, EventRequest, EventType } from '../../models/event.model';
       </div>
     }
   `,
-  styles: [`
-    .modal-shell {
-      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,249,255,0.98));
-      border: 1px solid rgba(185, 197, 214, 0.7);
-      border-radius: 28px;
-      box-shadow: 0 30px 80px rgba(11, 17, 32, 0.34);
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1rem;
-      padding: 1.25rem 1.5rem;
-      border-bottom: 1px solid rgba(185, 197, 214, 0.6);
-      background: linear-gradient(135deg, rgba(15, 122, 229, 0.08), rgba(0, 183, 216, 0.05));
-    }
-
-    .modal-eyebrow {
-      font-size: 0.75rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: #5b6b7e;
-      margin-bottom: 0.35rem;
-    }
-
-    .modal-title {
-      font-size: clamp(1.5rem, 2vw, 2.1rem);
-      font-weight: 900;
-      color: #102033;
-      line-height: 1.1;
-      margin: 0;
-    }
-
-    .modal-subtitle {
-      color: #5b6b7e;
-      margin-top: 0.4rem;
-      max-width: 44rem;
-    }
-
-    .modal-close {
-      flex: 0 0 auto;
-      width: 2.75rem;
-      height: 2.75rem;
-      padding: 0;
-      border-radius: 999px;
-    }
-
-    .modal-body {
-      overflow-y: auto;
-      padding: 1.25rem 1.5rem 1.5rem;
-    }
-
-    .modal-form {
-      display: grid;
-      gap: 1rem;
-    }
-
-    .modal-section {
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid rgba(185, 197, 214, 0.72);
-      border-radius: 22px;
-      padding: 1.1rem;
-      box-shadow: 0 10px 24px rgba(16, 32, 51, 0.05);
-    }
-
-    .section-head {
-      margin-bottom: 1rem;
-    }
-
-    .section-head h3 {
-      font-size: 0.92rem;
-      font-weight: 900;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: #27415d;
-      margin-bottom: 0.25rem;
-    }
-
-    .section-head p {
-      color: #5b6b7e;
-      font-size: 0.92rem;
-    }
-
-    .modal-grid {
-      display: grid;
-      gap: 1rem;
-    }
-
-    .modal-grid-2 {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.75rem;
-      padding-top: 0.25rem;
-    }
-
-    .modal-alert {
-      margin-bottom: 1rem;
-      padding: 0.9rem 1rem;
-      border-radius: 16px;
-      border: 1px solid rgba(216, 73, 73, 0.25);
-      background: rgba(255, 239, 239, 0.95);
-      color: #8e2d2d;
-      font-weight: 700;
-    }
-
-    .modal-alert-warn {
-      border-color: rgba(224, 139, 18, 0.25);
-      background: rgba(255, 247, 231, 0.95);
-      color: #8d5a0d;
-      margin-top: 0.75rem;
-    }
-
-    .chip-field {
-      border: 1.5px solid var(--line);
-      border-radius: 16px;
-      background: #ffffff;
-      padding: 0.75rem;
-      min-height: 4.4rem;
-      transition: border-color 160ms ease, box-shadow 160ms ease;
-    }
-
-    .chip-field:focus-within {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 4px rgba(15, 122, 229, 0.12);
-    }
-
-    .chip-field-error {
-      border-color: rgba(217, 72, 72, 0.75);
-    }
-
-    .chip-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      align-items: center;
-    }
-
-    .team-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.55rem 0.8rem;
-      border-radius: 999px;
-      background: linear-gradient(135deg, #0f7ae5 0%, #00b7d8 100%);
-      color: #ffffff;
-      font-size: 0.9rem;
-      font-weight: 800;
-      box-shadow: 0 10px 18px rgba(15, 122, 229, 0.2);
-    }
-
-    .team-chip button {
-      padding: 0;
-      background: transparent;
-      color: inherit;
-      font-size: 1.1rem;
-      line-height: 1;
-      box-shadow: none;
-      transform: none;
-    }
-
-    .chip-input {
-      flex: 1 1 14rem;
-      min-width: 14rem;
-      border: none;
-      background: transparent;
-      padding: 0.45rem 0.2rem;
-      box-shadow: none;
-    }
-
-    .chip-input:focus {
-      box-shadow: none;
-      background: transparent;
-    }
-
-    .suggestions-block {
-      margin-top: 0.8rem;
-    }
-
-    .suggestions-label {
-      display: block;
-      margin-bottom: 0.45rem;
-      font-size: 0.82rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #5b6b7e;
-    }
-
-    .suggestion-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-
-    .suggestion-chip {
-      padding: 0.5rem 0.8rem;
-      border-radius: 999px;
-      border: 1px solid rgba(15, 122, 229, 0.18);
-      background: #f4f8fc;
-      color: #20405f;
-      font-weight: 700;
-      box-shadow: none;
-    }
-
-    .suggestion-chip:hover {
-      background: #eaf4ff;
-      border-color: rgba(15, 122, 229, 0.3);
-    }
-
-    @media (max-width: 720px) {
-      .modal-grid-2 {
-        grid-template-columns: 1fr;
-      }
-
-      .modal-header,
-      .modal-body {
-        padding-left: 1rem;
-        padding-right: 1rem;
-      }
-
-      .modal-actions {
-        flex-direction: column-reverse;
-      }
-
-      .modal-actions button {
-        width: 100%;
-      }
-    }
-  `]
 })
 export class EventModalComponent {
   private eventService = inject(EventService);
@@ -756,12 +522,7 @@ export class EventModalComponent {
       },
       error: (err) => {
         this.loading.set(false);
-        if (err.status === 400 && err.error?.errors) {
-          this.fieldErrors.set(err.error.errors);
-          this.error.set('Please fix the errors above');
-        } else {
-          this.error.set(err.error?.message || 'Failed to save event');
-        }
+        this.error.set(extractErrorMessage(err, 'Échec de l\'enregistrement de l\'événement'));
       }
     });
   }

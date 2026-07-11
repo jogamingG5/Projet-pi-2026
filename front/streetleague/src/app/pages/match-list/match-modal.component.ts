@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatchService } from '../../services/match.service';
 import { Event } from '../../models/event.model';
 import { Match, MatchRequest, MatchStatus, MatchType } from '../../models/match.model';
+import { extractErrorMessage } from '../../utils/http-error';
 
 @Component({
   selector: 'app-match-modal',
@@ -11,8 +12,8 @@ import { Match, MatchRequest, MatchStatus, MatchType } from '../../models/match.
   imports: [CommonModule, FormsModule],
   template: `
     @if (isOpen()) {
-      <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 backdrop-blur-md p-4 sm:items-center">
-        <div class="modal-shell w-full max-w-5xl overflow-hidden max-h-[92vh] flex flex-col">
+      <div class="modal-overlay">
+        <div class="modal-shell" style="max-width: 64rem;">
           <div class="modal-header">
             <div>
               <div class="modal-eyebrow">Match editor</div>
@@ -328,138 +329,7 @@ import { Match, MatchRequest, MatchStatus, MatchType } from '../../models/match.
         </div>
       </div>
     }
-  `,
-  styles: [`
-    .modal-shell {
-      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,249,255,0.98));
-      border: 1px solid rgba(185, 197, 214, 0.7);
-      border-radius: 28px;
-      box-shadow: 0 30px 80px rgba(11, 17, 32, 0.34);
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1rem;
-      padding: 1.25rem 1.5rem;
-      border-bottom: 1px solid rgba(185, 197, 214, 0.6);
-      background: linear-gradient(135deg, rgba(15, 122, 229, 0.08), rgba(0, 183, 216, 0.05));
-    }
-
-    .modal-eyebrow {
-      font-size: 0.75rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: #5b6b7e;
-      margin-bottom: 0.35rem;
-    }
-
-    .modal-title {
-      font-size: clamp(1.5rem, 2vw, 2.1rem);
-      font-weight: 900;
-      color: #102033;
-      line-height: 1.1;
-      margin: 0;
-    }
-
-    .modal-subtitle {
-      color: #5b6b7e;
-      margin-top: 0.4rem;
-      max-width: 44rem;
-    }
-
-    .modal-close {
-      flex: 0 0 auto;
-      width: 2.75rem;
-      height: 2.75rem;
-      padding: 0;
-      border-radius: 999px;
-    }
-
-    .modal-body {
-      overflow-y: auto;
-      padding: 1.25rem 1.5rem 1.5rem;
-    }
-
-    .modal-form {
-      display: grid;
-      gap: 1rem;
-    }
-
-    .modal-section {
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid rgba(185, 197, 214, 0.72);
-      border-radius: 22px;
-      padding: 1.1rem;
-      box-shadow: 0 10px 24px rgba(16, 32, 51, 0.05);
-    }
-
-    .section-head {
-      margin-bottom: 1rem;
-    }
-
-    .section-head h3 {
-      font-size: 0.92rem;
-      font-weight: 900;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: #27415d;
-      margin-bottom: 0.25rem;
-    }
-
-    .section-head p {
-      color: #5b6b7e;
-      font-size: 0.92rem;
-    }
-
-    .modal-grid {
-      display: grid;
-      gap: 1rem;
-    }
-
-    .modal-grid-2 {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.75rem;
-      padding-top: 0.25rem;
-    }
-
-    .modal-alert {
-      margin-bottom: 1rem;
-      padding: 0.9rem 1rem;
-      border-radius: 16px;
-      border: 1px solid rgba(216, 73, 73, 0.25);
-      background: rgba(255, 239, 239, 0.95);
-      color: #8e2d2d;
-      font-weight: 700;
-    }
-
-    @media (max-width: 720px) {
-      .modal-grid-2 {
-        grid-template-columns: 1fr;
-      }
-
-      .modal-header,
-      .modal-body {
-        padding-left: 1rem;
-        padding-right: 1rem;
-      }
-
-      .modal-actions {
-        flex-direction: column-reverse;
-      }
-
-      .modal-actions button {
-        width: 100%;
-      }
-    }
-  `]
+  `
 })
 export class MatchModalComponent {
   private matchService = inject(MatchService);
@@ -854,12 +724,7 @@ export class MatchModalComponent {
       },
       error: (err) => {
         this.loading.set(false);
-        if (err.status === 400 && err.error?.errors) {
-          this.fieldErrors.set(err.error.errors);
-          this.error.set('Please fix the errors above');
-        } else {
-          this.error.set(err.error?.message || 'Failed to save match');
-        }
+        this.error.set(extractErrorMessage(err, 'Échec de l\'enregistrement du match'));
       }
     });
   }

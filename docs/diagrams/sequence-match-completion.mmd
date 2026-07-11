@@ -1,0 +1,45 @@
+%% StreetLeague — Sequence diagram: creating/completing a match and the cascade
+%% Render: https://mermaid.live or any Mermaid-enabled viewer
+sequenceDiagram
+    autonumber
+    actor User as Organisateur
+    participant UI as Angular (MatchModal)
+    participant MC as MatchController
+    participant MS as MatchService
+    participant ER as EventRepository
+    participant MR as MatchRepository
+    participant MRP as MatchResultProcessor
+    participant SR as StatistiquesRepository
+    participant CS as ClassementService
+    participant FR as FeuillesDeMatchRepository
+
+    User->>UI: Remplit le formulaire (statut = COMPLETED)
+    UI->>MC: POST /api/matchs (MatchRequest)
+    MC->>MC: @Valid — eventId @NotBlank
+
+    alt eventId manquant / invalide
+        MC-->>UI: 400 (validation) / 404 (event introuvable)
+        UI-->>User: Message d'erreur lisible
+    else event valide
+        MC->>MS: createMatch(request)
+        MS->>ER: findById(eventId)
+        ER-->>MS: Event
+        MS->>MS: forcer sportId = event.sportId
+        MS->>MR: save(match)
+        MR-->>MS: Match (persisté)
+
+        opt status == COMPLETED
+            MS->>MRP: processCompletedMatch(match)
+            MRP->>MR: findAll() matchs COMPLETED des 2 équipes
+            MRP->>SR: upsert Statistiques (recalcul depuis zéro)
+            Note over MRP,SR: idempotent — pas de double comptage
+            MRP->>FR: upsert FeuillesDeMatch (score + cartons)
+            MRP->>CS: generateClassementFromStatistiques(eventId, sportId, teamsIds)
+            CS->>SR: lire Statistiques des équipes
+            CS-->>MRP: Classement (rangs recalculés)
+        end
+
+        MS-->>MC: Match créé
+        MC-->>UI: 201 Created
+        UI-->>User: Match enregistré (stats/classement/feuille à jour)
+    end

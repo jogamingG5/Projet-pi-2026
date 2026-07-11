@@ -9,6 +9,9 @@ import { LoadingSpinnerComponent } from '../../components/loading-spinner.compon
 import { ConfirmDialogComponent } from '../../components/confirm-dialog.component';
 import { ToastContainerComponent } from '../../components/toast.component';
 import { MatchModalComponent } from './match-modal.component';
+import { PaginatorComponent } from '../../components/paginator.component';
+import { ExportMenuComponent } from '../../components/export-menu.component';
+import { extractErrorMessage } from '../../utils/http-error';
 
 interface MatchPrediction {
   matchId: string;
@@ -33,7 +36,9 @@ interface MatchPrediction {
     LoadingSpinnerComponent,
     ConfirmDialogComponent,
     ToastContainerComponent,
-    MatchModalComponent
+    MatchModalComponent,
+    PaginatorComponent,
+    ExportMenuComponent
   ],
   templateUrl: './match-list.component.html',
   styleUrls: ['./match-list.component.css']
@@ -44,7 +49,9 @@ export class MatchListComponent implements OnInit {
   @ViewChild(ToastContainerComponent) toastContainer!: ToastContainerComponent;
   @ViewChild(MatchModalComponent) matchModal!: MatchModalComponent;
 
-  matches = signal<Match[]>([]);
+  matches = signal<Match[]>([]);          // full set (predictions, modal suggestions)
+  pagedMatchesList = signal<Match[]>([]);  // current server page (table)
+  totalMatches = signal(0);
   events = signal<Event[]>([]);
   loading = signal(false);
   error = signal<string | null>(null);
@@ -57,29 +64,53 @@ export class MatchListComponent implements OnInit {
   selectedMatch = signal<Match | null>(null);
   selectedPrediction = signal<MatchPrediction | null>(null);
 
+  // Pagination (server-side)
+  page = signal(1);
+  readonly pageSize = 10;
+
   filters: (MatchStatus | 'ALL')[] = ['ALL', 'SCHEDULED', 'ONGOING', 'COMPLETED', 'CANCELLED'];
 
   ngOnInit(): void {
-    this.loadMatches();
+    this.loadPage();
+    this.loadAllMatches();
     this.loadEvents();
   }
 
-  loadMatches(): void {
+  /** Fetch the current page from the server, honoring active filters. */
+  loadPage(): void {
     this.loading.set(true);
     this.error.set(null);
 
-    this.matchService.getMatches().subscribe({
-      next: (data) => {
-        this.matches.set(data);
-        console.log('Matches loaded:', JSON.stringify(data, null, 2));
+    const filters: { sportId?: string; status?: MatchStatus; date?: string } = {};
+    if (this.selectedSport() !== 'ALL') filters.sportId = this.selectedSport();
+    if (this.selectedFilter() !== 'ALL') filters.status = this.selectedFilter() as MatchStatus;
+    if (this.selectedDate()) filters.date = this.selectedDate();
+
+    this.matchService.getMatchesPaged(this.page(), this.pageSize, filters).subscribe({
+      next: (res) => {
+        this.pagedMatchesList.set(res.content);
+        this.totalMatches.set(res.totalElements);
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set('Failed to load matches');
-        this.toastContainer?.show('Error loading matches', 'error');
+        this.error.set(extractErrorMessage(err, 'Échec du chargement des matchs'));
         this.loading.set(false);
       }
     });
+  }
+
+  /** Full set used by predictions and modal suggestions (not the table). */
+  loadAllMatches(): void {
+    this.matchService.getMatches().subscribe({
+      next: (data) => this.matches.set(data),
+      error: () => this.matches.set([])
+    });
+  }
+
+  /** Reload both the page and the full set after a mutation. */
+  loadMatches(): void {
+    this.loadPage();
+    this.loadAllMatches();
   }
 
   loadEvents(): void {
@@ -93,43 +124,54 @@ export class MatchListComponent implements OnInit {
     });
   }
 
-  getFilteredMatches(): Match[] {
-    let filtered = this.matches();
+  /** Active filters passed to the export endpoint. */
+  exportFilters(): Record<string, string | undefined> {
+    return {
+      sportId: this.selectedSport() !== 'ALL' ? this.selectedSport() : undefined,
+      status: this.selectedFilter() !== 'ALL' ? this.selectedFilter() : undefined
+    };
+  }
 
-    const filter = this.selectedFilter();
-    if (filter !== 'ALL') {
-      filtered = filtered.filter(m => m.status === filter);
-    }
+  /** Current server page for the table. */
+  pagedMatches(): Match[] {
+    return this.pagedMatchesList();
+  }
 
-    if (this.selectedSport() !== 'ALL') {
-      filtered = filtered.filter(m => m.sportId === this.selectedSport());
-    }
+  totalFilteredMatches(): number {
+    return this.totalMatches();
+  }
 
-    if (this.selectedDate()) {
-      filtered = filtered.filter(m => this.normalizeDate(m.date) === this.selectedDate());
-    }
-
-    return filtered;
+  onPageChange(page: number): void {
+    this.page.set(page);
+    this.loadPage();
   }
 
   onFilterChange(filter: MatchStatus | 'ALL'): void {
+    this.page.set(1);
     this.selectedFilter.set(filter);
+    this.loadPage();
   }
 
   onSportChange(event: globalThis.Event): void {
     const value = (event.target as HTMLSelectElement).value;
+    this.page.set(1);
     this.selectedSport.set(value);
+    this.loadPage();
   }
 
   onDateChange(event: globalThis.Event): void {
     const value = (event.target as HTMLInputElement).value;
+    this.page.set(1);
     this.selectedDate.set(value);
+    this.loadPage();
   }
 
   clearFilters(): void {
+    this.page.set(1);
     this.selectedFilter.set('ALL');
     this.selectedSport.set('ALL');
     this.selectedDate.set('');
+    this.loadPage();
   }
 
   togglePrediction(match: Match): void {
@@ -231,7 +273,7 @@ export class MatchListComponent implements OnInit {
         this.toastContainer?.show('Match deleted successfully', 'success');
       },
       error: () => {
-        this.toastContainer?.show('Error deleting match', 'error');
+        // The HTTP interceptor already shows a readable error toast.
         this.showConfirmDelete.set(false);
       }
     });
@@ -395,29 +437,5 @@ export class MatchListComponent implements OnInit {
 
   private clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
-  }
-
-  private normalizeDate(dateValue: any): string {
-    if (!dateValue) {
-      return '';
-    }
-
-    if (Array.isArray(dateValue)) {
-      const [year, month, day] = dateValue;
-      return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-    }
-
-    if (typeof dateValue === 'string') {
-      return dateValue.split('T')[0];
-    }
-
-    if (dateValue instanceof Date) {
-      const year = dateValue.getFullYear();
-      const month = `${dateValue.getMonth() + 1}`.padStart(2, '0');
-      const day = `${dateValue.getDate()}`.padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-
-    return '';
   }
 }
