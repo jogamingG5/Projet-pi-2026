@@ -1,204 +1,117 @@
 <div class="dashboard-container">
   <div class="page-header">
-    <h1 class="page-title">🏆 Classement des équipes</h1>
-    <p class="page-subtitle">Hiérarchie claire, contraste fort et lecture rapide des performances</p>
+    <div>
+      <span class="page-eyebrow">🏆 Standings</span>
+      <h1 class="page-title">Classement</h1>
+      <p class="page-subtitle">Classements générés automatiquement à partir des matchs terminés de chaque événement.</p>
+    </div>
+    <app-export-menu dataset="classement" [filters]="exportFilters()"></app-export-menu>
   </div>
 
-  <section class="search-panel">
-    <div class="search-panel-header">
-      <span>🔎</span>
-      <h2 class="search-panel-title">Recherche avancée</h2>
+  @if (error) {
+    <div class="alert alert-error">{{ error }}</div>
+  }
+
+  <!-- Search -->
+  <div class="panel" style="margin-bottom: 1.25rem;">
+    <div class="panel-head">
+      <div class="panel-icon">🔎</div>
+      <div><div class="panel-title">Rechercher un classement</div><div class="panel-sub">Par événement et sport</div></div>
     </div>
-
-    <div class="filter-chips">
-      <button class="chip active" type="button" (click)="loadAllClassements()">Tous</button>
-      <button class="chip" type="button">Par événement</button>
-      <button class="chip" type="button">Par sport</button>
+    <div class="filter-row">
+      <select [(ngModel)]="eventId" style="width:auto; min-width:220px;">
+        <option value="">Choisir un événement</option>
+        @for (event of events; track event.id) {
+          <option [value]="event.id">{{ event.nom }}</option>
+        }
+      </select>
+      <input type="text" [(ngModel)]="sportId" placeholder="Sport (ex: football)" style="width:auto; min-width:180px;" />
+      <button class="btn btn-primary" (click)="searchByEventAndSport()">Rechercher</button>
     </div>
-
-    <div class="grid grid-3">
-      <div class="input-group">
-        <label class="label">ID événement</label>
-        <div class="input-with-icon">
-          <span class="input-icon">📅</span>
-          <input class="input-field" type="text" placeholder="Ex: EVENT_01" [(ngModel)]="eventId" />
-        </div>
-      </div>
-
-      <div class="input-group">
-        <label class="label">ID sport</label>
-        <div class="input-with-icon">
-          <span class="input-icon">⚽</span>
-          <input class="input-field" type="text" placeholder="Ex: SPORT_01" [(ngModel)]="sportId" />
-        </div>
-      </div>
-
-      <div class="input-group" style="justify-content: end;">
-        <label class="label">&nbsp;</label>
-        <button class="btn btn-primary" type="button" (click)="searchByEventAndSport()">🔍 Rechercher</button>
-      </div>
-    </div>
-  </section>
-
-  <div *ngIf="error" class="alert alert-error">
-    <span class="alert-icon">⚠️</span>
-    <div>{{ error }}</div>
   </div>
 
-  <div *ngIf="loading" class="loading-container">
-    <div class="spinner"></div>
-    <p class="loading-text">Chargement du classement...</p>
-  </div>
-
-  <section *ngIf="!loading && classements.length > 0" class="dashboard-card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
-    <h3 class="section-title">📋 Classements disponibles</h3>
-    <div class="grid grid-3">
-      <button
-        *ngFor="let c of classements"
-        type="button"
-        class="card"
-        (click)="selectClassement(c)"
-        [class.selected]="selectedClassement?.id === c.id"
-        style="text-align: left;"
-      >
-        <div style="display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.8rem; align-items:start;">
-          <div>
-            <p class="label">Événement</p>
-            <strong>{{ getEventName(c.eventId) }}</strong>
+  @if (loading) {
+    <div class="loading-container"><div class="spinner"></div><div class="loading-text">Chargement…</div></div>
+  } @else {
+    <div class="grid gap-4" style="grid-template-columns: 300px 1fr;">
+      <!-- Classement list -->
+      <div class="panel" style="align-self:start;">
+        <div class="panel-title" style="margin-bottom:0.75rem;">Classements</div>
+        @if (classements.length === 0) {
+          <div class="empty-state" style="padding:1.5rem 0;"><p>Aucun classement</p></div>
+        } @else {
+          <div style="display:flex; flex-direction:column; gap:0.5rem;">
+            @for (c of classements; track c.id) {
+              <button
+                class="card"
+                [class.selected]="selectedClassement?.id === c.id"
+                (click)="selectClassement(c)"
+                style="text-align:left; width:100%;"
+              >
+                <div style="font-weight:800; color:var(--text);">{{ getEventName(c.eventId) }}</div>
+                <div style="font-size:0.82rem; color:var(--muted);">{{ c.sportId }} · {{ c.classements.length }} équipes</div>
+              </button>
+            }
           </div>
-          <span class="badge badge-primary">{{ c.classements.length }} équipes</span>
-        </div>
-        <p class="page-subtitle">Sport: {{ c.sportId }}</p>
-      </button>
-    </div>
-  </section>
-
-  <section *ngIf="!loading && selectedClassement" class="space-y-lg">
-    <div class="dashboard-card" style="padding: 1.25rem;">
-      <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: start;">
-        <div>
-          <h2 class="page-title" style="font-size: 1.8rem; margin-bottom: 0.4rem;">Classement {{ selectedClassement.sportId }}</h2>
-          <p class="page-subtitle">Événement: {{ getEventName(selectedClassement.eventId) }}</p>
-        </div>
-        <div class="badge badge-neutral">{{ selectedClassement.classements.length }} équipes classées</div>
-      </div>
-    </div>
-
-    <div *ngIf="getSelectedEvent()" class="dashboard-card" style="padding: 1.25rem;">
-      <div style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; align-items:start; margin-bottom:1rem;">
-        <div>
-          <h3 class="section-title">Matchs liés à l'événement</h3>
-          <p class="page-subtitle">{{ getSelectedEvent()?.nom }} • {{ getSelectedEvent()?.sportId }}</p>
-        </div>
-        <span class="badge badge-primary">{{ getSelectedEventMatches().length }} matchs</span>
+        }
       </div>
 
-      <div class="grid grid-3">
-        <div class="card" *ngFor="let match of getSelectedEventMatches()" style="text-align:left;">
-          <div style="font-weight:800; margin-bottom:0.35rem;">{{ match.team1Id }} vs {{ match.team2Id }}</div>
-          <div class="page-subtitle" style="font-size:0.82rem;">{{ match.date }} • {{ match.heure }}</div>
-          <div class="page-subtitle" style="font-size:0.82rem;">Terrain: {{ match.terrainId }}</div>
-        </div>
-        <div class="card" *ngIf="getSelectedEventMatches().length === 0">
-          <div style="font-weight:800;">Aucun match lié</div>
-          <div class="page-subtitle" style="font-size:0.82rem;">Aucun match trouvé pour cet événement</div>
-        </div>
+      <!-- Selected classement -->
+      <div>
+        @if (selectedClassement) {
+          <div class="stat-grid" style="margin-bottom:1.25rem;">
+            <div class="stat-card"><div class="stat-label">Matchs joués</div><div class="stat-value">{{ getTotalMatches() }}</div></div>
+            <div class="stat-card"><div class="stat-label">Meilleure attaque</div><div class="stat-value">{{ getBestAttack() }}</div></div>
+            <div class="stat-card"><div class="stat-label">Meilleure défense</div><div class="stat-value">{{ getBestDefense() }}</div></div>
+            <div class="stat-card"><div class="stat-label">Total buts</div><div class="stat-value">{{ getTotalGoals() }}</div></div>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>#</th><th>Équipe</th><th>J</th><th>V</th><th>N</th><th>D</th>
+                  <th>BM</th><th>BE</th><th>Diff</th><th>Pts</th><th>%V</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (entry of selectedClassement.classements; track entry.teamId) {
+                  <tr>
+                    <td style="font-size:1.05rem;">{{ getMedalIcon(entry.rang) }}</td>
+                    <td class="cell-strong">{{ entry.teamName || entry.teamId }}</td>
+                    <td>{{ entry.matchsJoues }}</td>
+                    <td>{{ entry.victoires }}</td>
+                    <td>{{ entry.nuls }}</td>
+                    <td>{{ entry.defaites }}</td>
+                    <td>{{ entry.butsMarques }}</td>
+                    <td>{{ entry.butsEncaisses }}</td>
+                    <td>{{ entry.differenceButsGoal }}</td>
+                    <td class="cell-strong">{{ entry.pointsTotal }}</td>
+                    <td [ngClass]="getWinRateClass(entry.tauxVictoire)">{{ entry.tauxVictoire | number:'1.0-0' }}%</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (getSelectedEventMatches().length > 0) {
+            <div class="panel" style="margin-top:1.25rem;">
+              <div class="panel-title" style="margin-bottom:0.75rem;">Matchs liés · {{ getEventName(selectedClassement.eventId) }}</div>
+              <div class="flex flex-wrap gap-2">
+                @for (m of getSelectedEventMatches(); track m.id) {
+                  <span class="badge badge-neutral">{{ m.team1Id }} {{ m.scoreTeam1 }}–{{ m.scoreTeam2 }} {{ m.team2Id }}</span>
+                }
+              </div>
+            </div>
+          }
+        } @else {
+          <div class="panel empty-state">
+            <div class="empty-emoji">🏆</div>
+            <h3>Aucun classement sélectionné</h3>
+            <p>Choisissez un classement dans la liste ou lancez une recherche.</p>
+          </div>
+        }
       </div>
     </div>
-
-    <div class="table-wrapper">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Rang</th>
-            <th>Équipe</th>
-            <th class="text-center">Matchs</th>
-            <th class="text-center">V-D-N</th>
-            <th class="text-center">Points</th>
-            <th class="text-center">Buts</th>
-            <th class="text-center">Diff.</th>
-            <th class="text-center">Victoire</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let entry of selectedClassement.classements; let i = index">
-            <td>
-              <div style="display:flex; align-items:center; gap:0.75rem; font-weight:800;">
-                <span style="font-size:1.45rem;">{{ getMedalIcon(entry.rang) }}</span>
-                <span>{{ entry.rang }}</span>
-              </div>
-            </td>
-            <td>
-              <div>
-                <div style="font-weight:700;">{{ entry.teamName }}</div>
-                <div class="page-subtitle" style="font-size:0.82rem;">{{ entry.teamId }}</div>
-              </div>
-            </td>
-            <td class="text-center">
-              <span class="badge badge-primary">{{ entry.matchsJoues }}</span>
-            </td>
-            <td>
-              <div style="display:flex; justify-content:center; gap:0.4rem; flex-wrap:wrap;">
-                <span class="badge badge-success">{{ entry.victoires }}</span>
-                <span class="badge badge-danger">{{ entry.defaites }}</span>
-                <span class="badge badge-neutral">{{ entry.nuls }}</span>
-              </div>
-            </td>
-            <td class="text-center"><strong style="font-size:1.25rem; color:var(--primary);">{{ entry.pointsTotal }}</strong></td>
-            <td class="text-center">
-              <div style="display:grid; gap:0.15rem;">
-                <span style="color: var(--success); font-weight:700;">{{ entry.butsMarques }}</span>
-                <span style="color: var(--danger); font-weight:700;">{{ entry.butsEncaisses }}</span>
-              </div>
-            </td>
-            <td class="text-center">
-              <strong [style.color]="entry.differenceButsGoal >= 0 ? 'var(--success)' : 'var(--danger)'">
-                {{ entry.differenceButsGoal >= 0 ? '+' : '' }}{{ entry.differenceButsGoal }}
-              </strong>
-            </td>
-            <td>
-              <div style="display:grid; gap:0.35rem;">
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
-                  <span [ngClass]="getWinRateClass(entry.tauxVictoire)" style="font-weight:800;">{{ (entry.tauxVictoire || 0).toFixed(1) }}%</span>
-                  <span style="font-size:0.8rem; color:var(--muted);">performance</span>
-                </div>
-                <div class="progress-bar">
-                  <div class="progress-fill" [style.width.%]="entry.tauxVictoire || 0"></div>
-                </div>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="dashboard-card" style="padding: 1.25rem;">
-      <h3 class="section-title">📊 Résumé des statistiques</h3>
-      <div class="grid grid-4">
-        <div class="stat-card">
-          <div class="stat-label">Total matchs</div>
-          <div class="stat-value">{{ getTotalMatches() }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Meilleure attaque</div>
-          <div class="stat-value">{{ getBestAttack() }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Meilleure défense</div>
-          <div class="stat-value">{{ getBestDefense() }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Total buts</div>
-          <div class="stat-value">{{ getTotalGoals() }}</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <div *ngIf="!loading && classements.length === 0" class="dashboard-card" style="padding: 3rem 1.5rem; text-align:center;">
-    <div style="font-size:3rem; margin-bottom:0.75rem;">🏆</div>
-    <h3 style="font-size:1.2rem; font-weight:800; margin-bottom:0.5rem;">Aucun classement disponible</h3>
-    <p class="page-subtitle" style="margin-bottom:1.25rem;">Lance une recherche pour afficher les standings.</p>
-    <button class="btn btn-primary" type="button" (click)="loadAllClassements()">↻ Recharger</button>
-  </div>
+  }
 </div>

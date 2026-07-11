@@ -1,0 +1,125 @@
+%% StreetLeague — Class diagram (domain model)
+%% Render: https://mermaid.live or any Mermaid-enabled viewer
+classDiagram
+    direction LR
+
+    class Event {
+        +String id
+        +String nomEvenement
+        +String description
+        +LocalDate dateDebut
+        +LocalDate dateFin
+        +EventType type
+        +EventStatus status
+        +String sportId
+        +List~String~ teamsIds
+        +String locationId
+        +int expectedMatches
+    }
+
+    class Match {
+        +String id
+        +String eventId
+        +String team1Id
+        +String team2Id
+        +int scoreTeam1
+        +int scoreTeam2
+        +String terrainId
+        +LocalDate dateDebut
+        +String heure
+        +String sportId
+        +String arbitreId
+        +MatchStatus status
+        +MatchType type
+    }
+
+    class Statistiques {
+        +String id
+        +String teamId
+        +String sportId
+        +int nbMatchsJoues
+        +int nbVictoires
+        +int nbNuls
+        +int nbDefaites
+        +int nbButsMarques
+        +int nbButsEncaisses
+        +getNbPointsTotal() int
+        +getDifferenceButsGoal() double
+        +getTauxVictoire() double
+    }
+
+    class Classement {
+        +String id
+        +String eventId
+        +String sportId
+        +List~ClassementEntry~ classements
+    }
+
+    class ClassementEntry {
+        +String teamId
+        +String teamName
+        +int rang
+        +int matchsJoues
+        +int victoires
+        +int nuls
+        +int defaites
+        +int pointsTotal
+        +int butsMarques
+        +int butsEncaisses
+        +int differenceButsGoal
+        +double tauxVictoire
+    }
+
+    class FeuillesDeMatch {
+        +String id
+        +String matchId
+        +List~RecapEquipe~ recap
+    }
+
+    class RecapEquipe {
+        +String teamId
+        +int score
+        +List~String~ playerbookedYellowCards
+        +List~String~ playerbookedRedCards
+    }
+
+    class EventType {
+        <<enumeration>>
+        LEAGUE
+        FRIENDLY
+        TOURNAMENT
+    }
+    class EventStatus {
+        <<enumeration>>
+        PLANNED
+        ONGOING
+        FINISHED
+        CANCELLED
+    }
+    class MatchStatus {
+        <<enumeration>>
+        SCHEDULED
+        ONGOING
+        COMPLETED
+        CANCELLED
+    }
+    class MatchType {
+        <<enumeration>>
+        LEAGUE
+        FRIENDLY
+    }
+
+    %% Relationships (references by id — MongoDB documents)
+    Event "1" <-- "0..*" Match : eventId (obligatoire)
+    Match "1" <-- "0..1" FeuillesDeMatch : matchId
+    FeuillesDeMatch "1" *-- "1..*" RecapEquipe : recap
+    Classement "1" *-- "0..*" ClassementEntry : classements
+    Event "1" <.. "0..1" Classement : eventId + sportId
+    Event ..> EventType
+    Event ..> EventStatus
+    Match ..> MatchStatus
+    Match ..> MatchType
+
+    %% Derived (recomputed from COMPLETED matches)
+    Match ..> Statistiques : alimente (par teamId+sportId)
+    Statistiques ..> ClassementEntry : source du classement

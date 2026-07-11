@@ -4,13 +4,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatchService } from '../../services/match.service';
 import { Match } from '../../models/match.model';
 import { BadgeComponent } from '../../components/badge.component';
-import { LoadingSpinnerComponent } from '../../components/loading-spinner.component';
 import { ConfirmDialogComponent } from '../../components/confirm-dialog.component';
 
 @Component({
   selector: 'app-match-detail',
   standalone: true,
-  imports: [CommonModule, BadgeComponent, LoadingSpinnerComponent, ConfirmDialogComponent],
+  imports: [CommonModule, BadgeComponent, ConfirmDialogComponent],
   templateUrl: './match-detail.component.html',
   styleUrls: ['./match-detail.component.css']
 })

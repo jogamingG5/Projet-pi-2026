@@ -13,29 +13,67 @@ import org.springframework.stereotype.Service;
 import com.example.projectPi.dto.MatchRequest;
 import com.example.projectPi.dto.TeamRanking;
 import com.example.projectPi.dto.TeamStats;
+import com.example.projectPi.exception.EventNotFoundException;
+import com.example.projectPi.models.Event;
 import com.example.projectPi.exception.MatchNotFoundException;
 import com.example.projectPi.models.Match;
+import com.example.projectPi.repositories.EventRepository;
 import com.example.projectPi.repositories.MatchRepository;
 
 @Service
 public class MatchService {
 
     private final MatchRepository matchRepository;
+    private final EventRepository eventRepository;
+    private final MatchResultProcessor matchResultProcessor;
 
-    public MatchService(MatchRepository matchRepository) {
+    public MatchService(MatchRepository matchRepository,
+                        EventRepository eventRepository,
+                        MatchResultProcessor matchResultProcessor) {
         this.matchRepository = matchRepository;
+        this.eventRepository = eventRepository;
+        this.matchResultProcessor = matchResultProcessor;
     }
 
     public Match createMatch(MatchRequest request) {
+        Event event = requireEvent(request.getEventId());
         Match match = new Match();
-        applyRequest(match, request);
+        applyRequest(match, request, event);
         match.setCreatedAt(LocalDateTime.now());
         match.setUpdatedAt(LocalDateTime.now());
-        return matchRepository.save(match);
+        Match saved = matchRepository.save(match);
+        if (saved.getStatus() == Match.MatchStatus.COMPLETED) {
+            matchResultProcessor.processCompletedMatch(saved);
+        }
+        return saved;
     }
 
     public List<Match> getAllMatchs() {
         return matchRepository.findAll();
+    }
+
+    /**
+     * Liste paginée des matchs, avec filtres optionnels (sport, statut, date).
+     * Tri par date décroissante. page est 1-based.
+     */
+    public com.example.projectPi.dto.PagedResponse<Match> getMatchsPaged(
+            int page, int size, String sportId, Match.MatchStatus status, java.time.LocalDate date) {
+
+        List<Match> filtered = matchRepository.findAll().stream()
+            .filter(m -> sportId == null || sportId.isEmpty() || sportId.equals(m.getSportId()))
+            .filter(m -> status == null || m.getStatus() == status)
+            .filter(m -> date == null || date.equals(m.getDateDebut()))
+            .sorted(Comparator.comparing(Match::getDateDebut,
+                Comparator.nullsLast(Comparator.reverseOrder())))
+            .collect(Collectors.toList());
+
+        int safeSize = size <= 0 ? 10 : size;
+        int safePage = page <= 0 ? 1 : page;
+        int from = Math.min((safePage - 1) * safeSize, filtered.size());
+        int to = Math.min(from + safeSize, filtered.size());
+        List<Match> content = filtered.subList(from, to);
+
+        return new com.example.projectPi.dto.PagedResponse<>(content, safePage, safeSize, filtered.size());
     }
 
     public Match getMatchById(String id) {
@@ -45,9 +83,25 @@ public class MatchService {
 
     public Match updateMatch(String id, MatchRequest request) {
         Match match = getMatchById(id); // lance l'exception si absent
-        applyRequest(match, request);
+        Event event = requireEvent(request.getEventId());
+        applyRequest(match, request, event);
         match.setUpdatedAt(LocalDateTime.now());
-        return matchRepository.save(match);
+        Match saved = matchRepository.save(match);
+        // Toujours recalculer les stats des deux équipes : si un match est repassé
+        // hors COMPLETED, sa contribution est retirée (recalcul filtré sur COMPLETED).
+        matchResultProcessor.reprocessTeams(saved);
+        if (saved.getStatus() == Match.MatchStatus.COMPLETED) {
+            matchResultProcessor.processCompletedMatch(saved);
+        }
+        return saved;
+    }
+
+    /**
+     * Vérifie que l'événement référencé existe (FK obligatoire).
+     */
+    private Event requireEvent(String eventId) {
+        return eventRepository.findById(eventId)
+            .orElseThrow(() -> new EventNotFoundException(eventId));
     }
 
     public void deleteMatch(String id) {
@@ -351,7 +405,7 @@ public class MatchService {
     // ==================== MÉTHODES UTILITAIRES ====================
 
     // Méthode privée : applique le DTO sur l'entité
-    private void applyRequest(Match match, MatchRequest req) {
+    private void applyRequest(Match match, MatchRequest req, Event event) {
         match.setTeam1Id(req.getTeam1Id());
         match.setTeam2Id(req.getTeam2Id());
         match.setScoreTeam1(req.getScoreTeam1());
@@ -359,9 +413,11 @@ public class MatchService {
         match.setTerrainId(req.getTerrainId());
         match.setDateDebut(req.getDateDebut());
         match.setHeure(req.getHeure());
-        match.setSportId(req.getSportId());
+        // L'événement est la source de vérité pour le sport : on force le sportId
+        // du match à celui de l'événement (sinon on retombe sur le sportId demandé).
+        match.setSportId(event.getSportId() != null ? event.getSportId() : req.getSportId());
         match.setArbitreId(req.getArbitreId());
-        match.setEventId(req.getEventId());
+        match.setEventId(event.getId());
         if (req.getStatus() != null) match.setStatus(req.getStatus());
         if (req.getType()   != null) match.setType(req.getType());
     }

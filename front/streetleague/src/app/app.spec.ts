@@ -23,6 +23,6 @@ describe('App', () => {
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('nav')).toBeTruthy();
-    expect(compiled.textContent).toContain('Street League');
+    expect(compiled.textContent).toContain('StreetLeague');
   });
 });

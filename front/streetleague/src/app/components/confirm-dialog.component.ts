@@ -8,22 +8,14 @@ import { CommonModule } from '@angular/common';
   template: `
     @if (isOpen()) {
       <div class="modal-overlay">
-        <div class="modal" style="max-width: 400px;">
-          <h2 style="color: #00d4ff; margin-bottom: 1rem;">{{ title() }}</h2>
-          <p style="color: #b0c4de; margin-bottom: 2rem;">{{ message() }}</p>
-          <div class="button-group">
-            <button
-              (click)="onCancel()"
-              class="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              (click)="onConfirm()"
-              class="btn-danger"
-            >
-              {{ confirmText() }}
-            </button>
+        <div class="modal-shell" style="max-width: 420px;">
+          <div style="padding: 1.5rem;">
+            <h2 class="modal-title" style="font-size: 1.25rem; margin-bottom: 0.5rem;">{{ title() }}</h2>
+            <p style="margin-bottom: 1.5rem;">{{ message() }}</p>
+            <div class="modal-actions" style="margin-top: 0;">
+              <button (click)="onCancel()" class="btn btn-ghost">Cancel</button>
+              <button (click)="onConfirm()" class="btn btn-danger">{{ confirmText() }}</button>
+            </div>
           </div>
         </div>
       </div>

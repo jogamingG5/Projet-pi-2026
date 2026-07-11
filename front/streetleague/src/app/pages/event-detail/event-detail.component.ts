@@ -6,13 +6,12 @@ import { MatchService } from '../../services/match.service';
 import { Event } from '../../models/event.model';
 import { Match } from '../../models/match.model';
 import { BadgeComponent } from '../../components/badge.component';
-import { LoadingSpinnerComponent } from '../../components/loading-spinner.component';
 import { ConfirmDialogComponent } from '../../components/confirm-dialog.component';
 
 @Component({
   selector: 'app-event-detail',
   standalone: true,
-  imports: [CommonModule, BadgeComponent, LoadingSpinnerComponent, ConfirmDialogComponent],
+  imports: [CommonModule, BadgeComponent, ConfirmDialogComponent],
   templateUrl: './event-detail.component.html',
   styleUrls: ['./event-detail.component.css']
 })
@@ -68,9 +67,8 @@ export class EventDetailComponent implements OnInit {
   getEventMatches(): Match[] {
     const eventData = this.event();
     if (!eventData) return [];
-    // Filter matches where eventId === event.id (if backend provides eventId field)
-    // For now, return all matches (adjust when backend clarifies)
-    return this.matches();
+    // eventId is now a mandatory FK on every match, so we can filter reliably.
+    return this.matches().filter(match => match.eventId === eventData.id);
   }
 
   onEdit(): void {

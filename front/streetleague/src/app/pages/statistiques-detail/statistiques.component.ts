@@ -8,11 +8,12 @@ import { MatchService } from '../../services/match.service';
 import { Event } from '../../models/event.model';
 import { Match } from '../../models/match.model';
 import { finalize } from 'rxjs';
+import { ExportMenuComponent } from '../../components/export-menu.component';
 
 @Component({
   selector: 'app-statistiques',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ExportMenuComponent],
   templateUrl: './statistiques.component.html',
   styleUrls: ['./statistiques.component.css']
 })

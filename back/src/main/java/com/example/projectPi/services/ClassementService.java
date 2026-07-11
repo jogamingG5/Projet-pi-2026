@@ -168,9 +168,11 @@ public class ClassementService {
             entries.get(i).setRang(i + 1);
         }
 
-        Classement classement = new Classement(eventId, sportId);
+        // Upsert : on réutilise le classement existant pour cet event+sport afin
+        // d'éviter les doublons à chaque recalcul (fin de match).
+        Classement classement = classementRepository.findByEventIdAndSportId(eventId, sportId)
+            .orElseGet(() -> new Classement(eventId, sportId));
         classement.setClassements(entries);
-        classement.setCreatedAt(LocalDateTime.now());
         classement.setUpdatedAt(LocalDateTime.now());
 
         return classementRepository.save(classement);

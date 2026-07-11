@@ -51,9 +51,9 @@ public class EventRequest {
     @Schema(description = "ID du terrain/lieu principal")
     private String locationId;
     
-    @Min(value = 1, message = "Expected matches must be at least 1")
+    @Min(value = 0, message = "Expected matches cannot be negative")
     @Max(value = 500, message = "Expected matches cannot exceed 500")
-    @Schema(description = "Nombre estimé de matches", example = "20")
+    @Schema(description = "Nombre estimé de matches (optionnel)", example = "20")
     private int expectedMatches;
 
     // Constructors

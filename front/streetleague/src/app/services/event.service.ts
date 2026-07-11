@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Event, EventRequest } from '../models/event.model';
+import { PagedResponse } from '../models/paged.model';
 import { API_BASE_URL, ENDPOINTS } from '../utils/constants';
 
 @Injectable({ providedIn: 'root' })
@@ -12,7 +13,7 @@ export class EventService {
   constructor(private http: HttpClient) {}
 
   private mapEventFromApi(apiEvent: any): Event {
-    const mapped = {
+    return {
       id: apiEvent.id,
       nom: apiEvent.nomEvenement || apiEvent.nom || '',
       description: apiEvent.description || '',
@@ -24,10 +25,6 @@ export class EventService {
       createdAt: apiEvent.createdAt,
       updatedAt: apiEvent.updatedAt
     };
-    if (apiEvent.nomEvenement) {
-      console.log('Mapped event:', mapped.nom);
-    }
-    return mapped;
   }
 
   getEvents(): Observable<Event[]> {
@@ -37,6 +34,23 @@ export class EventService {
         const eventsArray = Array.isArray(response) ? response : (response.value || []);
         return eventsArray.map((event: any) => this.mapEventFromApi(event));
       })
+    );
+  }
+
+  getEventsPaged(
+    page: number,
+    size: number,
+    filters: { sportId?: string; type?: string; search?: string } = {}
+  ): Observable<PagedResponse<Event>> {
+    let params = new HttpParams().set('page', page).set('size', size);
+    if (filters.sportId) params = params.set('sportId', filters.sportId);
+    if (filters.type) params = params.set('type', filters.type);
+    if (filters.search) params = params.set('search', filters.search);
+    return this.http.get<PagedResponse<any>>(`${this.apiUrl}/paged`, { params }).pipe(
+      map(res => ({
+        ...res,
+        content: (res.content || []).map(e => this.mapEventFromApi(e))
+      }))
     );
   }
 
