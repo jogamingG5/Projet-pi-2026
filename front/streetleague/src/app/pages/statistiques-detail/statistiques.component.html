@@ -16,6 +16,23 @@
       <button class="chip" [class.active]="filterBy === 'sport'" type="button" (click)="filterBy = 'sport'">Par sport</button>
     </div>
 
+    <div class="grid grid-2" style="margin-top: 1rem;">
+      <div class="input-group">
+        <label class="label">Événement lié</label>
+        <div class="input-with-icon">
+          <span class="input-icon">📅</span>
+          <select class="input-field" [value]="selectedEventId" (change)="onEventChange($event)">
+            <option value="">Tous les événements</option>
+            <option *ngFor="let event of events" [value]="event.id">{{ event.nom }} ({{ event.sportId }})</option>
+          </select>
+        </div>
+      </div>
+      <div class="input-group" style="justify-content:end;">
+        <label class="label">&nbsp;</label>
+        <button class="btn btn-secondary" type="button" (click)="clearEventFilter()">Réinitialiser événement</button>
+      </div>
+    </div>
+
     <div *ngIf="filterBy === 'all'" class="grid grid-3">
       <div class="input-group">
         <label class="label">ID équipe</label>
@@ -76,11 +93,33 @@
     <p class="loading-text">Chargement des statistiques...</p>
   </div>
 
-  <section *ngIf="!loading && statistiques.length > 0" class="dashboard-card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+  <section *ngIf="selectedEvent" class="dashboard-card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+    <div style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; align-items:start; margin-bottom:1rem;">
+      <div>
+        <h3 class="section-title">Événement sélectionné</h3>
+        <p class="page-subtitle">{{ selectedEvent.nom }} • {{ selectedEvent.sportId }}</p>
+      </div>
+      <span class="badge badge-primary">{{ linkedMatches.length }} matchs liés</span>
+    </div>
+
+    <div class="grid grid-3">
+      <div class="card" *ngFor="let match of linkedMatches" style="text-align:left;">
+        <div style="font-weight:800; margin-bottom:0.35rem;">{{ getMatchLabel(match) }}</div>
+        <div class="page-subtitle" style="font-size:0.82rem;">{{ match.date }} • {{ match.heure }}</div>
+        <div class="page-subtitle" style="font-size:0.82rem;">Terrain: {{ match.terrainId }}</div>
+      </div>
+      <div class="card" *ngIf="linkedMatches.length === 0">
+        <div style="font-weight:800;">Aucun match lié</div>
+        <div class="page-subtitle" style="font-size:0.82rem;">Aucun match trouvé pour cet événement</div>
+      </div>
+    </div>
+  </section>
+
+  <section *ngIf="!loading && filteredStatistiques().length > 0" class="dashboard-card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
     <h3 class="section-title">Équipes disponibles</h3>
     <div class="grid grid-3">
       <button
-        *ngFor="let stats of statistiques"
+        *ngFor="let stats of filteredStatistiques()"
         type="button"
         class="card"
         [class.selected]="selectedStatistiques?.id === stats.id"
@@ -187,7 +226,7 @@
     </div>
   </section>
 
-  <div *ngIf="!loading && statistiques.length === 0" class="dashboard-card" style="padding:3rem 1.5rem; text-align:center;">
+  <div *ngIf="!loading && filteredStatistiques().length === 0" class="dashboard-card" style="padding:3rem 1.5rem; text-align:center;">
     <div style="font-size:3rem; margin-bottom:0.75rem;">📊</div>
     <h3 style="font-size:1.2rem; font-weight:800; margin-bottom:0.5rem;">Aucune statistique disponible</h3>
     <p class="page-subtitle">Aucune donnée n’a encore été chargée.</p>

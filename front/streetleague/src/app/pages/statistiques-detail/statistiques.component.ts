@@ -3,6 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StatistiquesService } from '../../services/statistiques.service';
 import { Statistiques } from '../../models/statistiques.model';
+import { EventService } from '../../services/event.service';
+import { MatchService } from '../../services/match.service';
+import { Event } from '../../models/event.model';
+import { Match } from '../../models/match.model';
 import { finalize } from 'rxjs';
 
 @Component({
@@ -14,20 +18,27 @@ import { finalize } from 'rxjs';
 })
 export class StatistiquesComponent implements OnInit {
   statistiques: Statistiques[] = [];
+  events: Event[] = [];
+  matches: Match[] = [];
   selectedStatistiques: Statistiques | null = null;
   teamId: string = '';
   sportId: string = '';
+  selectedEventId: string = '';
   loading: boolean = false;
   error: string = '';
   filterBy: 'all' | 'team' | 'sport' = 'all';
 
   constructor(
     private statistiquesService: StatistiquesService,
+    private eventService: EventService,
+    private matchService: MatchService,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
     this.loadAllStatistiques();
+    this.loadEvents();
+    this.loadMatches();
   }
 
   loadAllStatistiques(): void {
@@ -41,10 +52,41 @@ export class StatistiquesComponent implements OnInit {
     ).subscribe({
       next: (data) => {
         this.statistiques = data;
+        if (!this.selectedStatistiques && data.length > 0) {
+          this.selectedStatistiques = data[0];
+        }
       },
       error: (err) => {
         this.error = 'Erreur lors du chargement des statistiques';
         console.error(err);
+      }
+    });
+  }
+
+  loadEvents(): void {
+    this.eventService.getEvents().subscribe({
+      next: (data) => {
+        this.events = data;
+        if (!this.selectedEventId && data.length > 0) {
+          this.selectedEventId = data[0].id;
+          if (!this.selectedStatistiques) {
+            this.selectedStatistiques = this.filteredStatistiques()[0] || this.statistiques[0] || null;
+          }
+        }
+      },
+      error: () => {
+        this.events = [];
+      }
+    });
+  }
+
+  loadMatches(): void {
+    this.matchService.getMatches().subscribe({
+      next: (data) => {
+        this.matches = data;
+      },
+      error: () => {
+        this.matches = [];
       }
     });
   }
@@ -129,6 +171,48 @@ export class StatistiquesComponent implements OnInit {
 
   selectStatistiques(stats: Statistiques): void {
     this.selectedStatistiques = stats;
+  }
+
+  onEventChange(event: globalThis.Event): void {
+    this.selectedEventId = (event.target as HTMLSelectElement).value;
+    this.selectedStatistiques = this.filteredStatistiques()[0] || null;
+  }
+
+  get selectedEvent(): Event | null {
+    return this.events.find(event => event.id === this.selectedEventId) || null;
+  }
+
+  get linkedMatches(): Match[] {
+    const selectedEvent = this.selectedEvent;
+    if (!selectedEvent) {
+      return [];
+    }
+
+    return this.matches.filter(match => match.eventId === selectedEvent.id);
+  }
+
+  filteredStatistiques(): Statistiques[] {
+    if (!this.selectedEvent) {
+      return this.statistiques;
+    }
+
+    const eventTeams = new Set(this.selectedEvent.teamsIds || []);
+    return this.statistiques.filter(stats =>
+      eventTeams.has(stats.teamId) && stats.sportId === this.selectedEvent?.sportId
+    );
+  }
+
+  getEventName(eventId: string): string {
+    return this.events.find(event => event.id === eventId)?.nom || eventId;
+  }
+
+  getMatchLabel(match: Match): string {
+    return `${match.team1Id} vs ${match.team2Id}`;
+  }
+
+  clearEventFilter(): void {
+    this.selectedEventId = '';
+    this.selectedStatistiques = this.statistiques[0] || null;
   }
 
   getPerformanceClass(taux: number): string {

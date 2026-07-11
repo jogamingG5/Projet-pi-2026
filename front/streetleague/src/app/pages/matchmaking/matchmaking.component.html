@@ -11,8 +11,8 @@
       <label for="event-select">Select Event</label>
       <select id="event-select" [(ngModel)]="selectedEventId" class="form-control">
         <option value="">-- Choose Event --</option>
-        <option *ngFor="let event of events" [value]="event.id">
-          {{ event.name }}
+        <option *ngFor="let event of availableEventOptions()" [value]="event.id">
+          {{ event.label }}
         </option>
       </select>
     </div>

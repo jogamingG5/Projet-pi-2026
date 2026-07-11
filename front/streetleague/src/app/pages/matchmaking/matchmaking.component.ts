@@ -1,8 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { MatchService } from '../../services/match.service';
+import { EventService } from '../../services/event.service';
+import { Match } from '../../models/match.model';
+import { Event } from '../../models/event.model';
 
 // Model for match suggestions
 interface MatchSuggestion {
@@ -33,33 +35,73 @@ export class MatchmakingComponent implements OnInit {
   
   // Data
   suggestions: MatchSuggestion[] = [];
-  events: any[] = [];
+  events: Event[] = [];
+  matches: Match[] = [];
   sports: string[] = ['football', 'volleyball', 'basketball', 'badminton', 'tennis'];
   
   // Loading & error states
   loading: boolean = false;
   error: string | null = null;
   success: string | null = null;
-  
-  private apiBaseUrl = 'http://localhost:8081/streetleague/api';
-  
-  constructor(private http: HttpClient) {}
+
+  constructor(
+    private matchService: MatchService,
+    private eventService: EventService
+  ) {}
   
   ngOnInit(): void {
+    this.loadMatches();
     this.loadEvents();
   }
   
   /**
-   * Load events from backend (stub - would integrate with EventService)
+   * Load matches from backend and derive sports/events from live data
    */
+  loadMatches(): void {
+    this.matchService.getMatches().subscribe({
+      next: (data) => {
+        this.matches = data;
+        this.sports = [...new Set(data.map(match => match.sportId).filter(Boolean))].sort();
+
+        if (!this.selectedSportId && this.sports.length > 0) {
+          this.selectedSportId = this.sports[0];
+        }
+
+        if (this.selectedEventId && this.selectedSportId && this.suggestions.length === 0) {
+          this.generateSuggestions();
+        }
+      },
+      error: () => {
+        this.error = 'Unable to load existing matches';
+      }
+    });
+  }
+
   loadEvents(): void {
-    // In production: inject EventService and call getEvents()
-    // For demo purposes, using hardcoded mock data
-    this.events = [
-      { id: 'event-1', name: 'Street League 2026' },
-      { id: 'event-2', name: 'Spring Tournament' },
-      { id: 'event-3', name: 'Championship Finals' }
-    ];
+    this.eventService.getEvents().subscribe({
+      next: (data) => {
+        this.events = data;
+        if (!this.selectedEventId && data.length > 0) {
+          this.selectedEventId = data[0].id;
+        }
+
+        if (this.selectedEventId && this.selectedSportId && this.matches.length > 0 && this.suggestions.length === 0) {
+          this.generateSuggestions();
+        }
+      },
+      error: () => {
+        this.events = [];
+      }
+    });
+  }
+
+  availableEventOptions(): { id: string; label: string }[] {
+    const eventIds = [...new Set(this.matches.map(match => match.eventId).filter((value): value is string => !!value))];
+
+    return eventIds.map((eventId) => ({
+      id: eventId,
+      label: this.getEventLabel(eventId)
+    }));
   }
   
   /**
@@ -74,28 +116,56 @@ export class MatchmakingComponent implements OnInit {
     this.loading = true;
     this.error = null;
     this.success = null;
-    
-    const url = `${this.apiBaseUrl}/matchmaking/event/${this.selectedEventId}/sport/${this.selectedSportId}?round=${this.roundNumber}&format=${this.selectedFormat}`;
-    
-    this.http.get<MatchSuggestion[]>(url).subscribe({
-      next: (data) => {
-        this.suggestions = data;
-        this.loading = false;
-        
-        if (this.suggestions.length === 0) {
-          this.error = 'No matches available. All possible pairings already played or insufficient teams.';
-        } else {
-          this.success = `Generated ${this.suggestions.length} balanced match suggestion(s)`;
-        }
-      },
-      error: (err) => {
-        this.loading = false;
-        this.error = err.status === 404 
-          ? 'Event or sport not found'
-          : 'Failed to generate suggestions. Please try again.';
-        console.error('Matchmaking error:', err);
-      }
+
+    const scopedMatches = this.matches.filter(match => {
+      const eventMatches = !this.selectedEventId || match.eventId === this.selectedEventId;
+      const sportMatches = match.sportId === this.selectedSportId;
+      return eventMatches && sportMatches;
     });
+
+    const teamIds = [...new Set(scopedMatches.flatMap(match => [match.team1Id, match.team2Id]).filter(Boolean))];
+
+    if (teamIds.length < 2) {
+      this.suggestions = [];
+      this.loading = false;
+      this.error = 'No existing matches found for this event and sport';
+      return;
+    }
+
+    const predictions: MatchSuggestion[] = [];
+
+    for (let i = 0; i < teamIds.length; i++) {
+      for (let j = i + 1; j < teamIds.length; j++) {
+        const teamAId = teamIds[i];
+        const teamBId = teamIds[j];
+        const teamAStats = this.getTeamStats(scopedMatches, teamAId);
+        const teamBStats = this.getTeamStats(scopedMatches, teamBId);
+        const strengthA = teamAStats.form + teamAStats.attack - teamAStats.defense;
+        const strengthB = teamBStats.form + teamBStats.attack - teamBStats.defense;
+        const totalStrength = Math.max(0.1, Math.abs(strengthA) + Math.abs(strengthB));
+        const closeness = 1 - Math.min(1, Math.abs(strengthA - strengthB) / totalStrength);
+        const predictedWinnerId = strengthA >= strengthB ? teamAId : teamBId;
+        const confidencePercent = 50 + closeness * 45;
+
+        predictions.push({
+          teamAId,
+          teamBId,
+          teamAName: teamAId,
+          teamBName: teamBId,
+          balanceScore: closeness,
+          predictedWinnerId,
+          confidencePercent,
+          priorityScore: closeness * 0.7 + (confidencePercent / 100) * 0.3
+        });
+      }
+    }
+
+    this.suggestions = predictions.sort((left, right) => right.priorityScore - left.priorityScore).slice(0, 12);
+    this.loading = false;
+
+    this.success = this.suggestions.length > 0
+      ? `Generated ${this.suggestions.length} balanced match suggestion(s)`
+      : 'No balanced match suggestions available';
   }
   
   /**
@@ -132,5 +202,45 @@ export class MatchmakingComponent implements OnInit {
     this.suggestions = [];
     this.error = null;
     this.success = null;
+  }
+
+  getEventLabel(eventId: string): string {
+    return this.events.find(event => event.id === eventId)?.nom || eventId;
+  }
+
+  private getTeamStats(matches: Match[], teamId: string): { attack: number; defense: number; form: number } {
+    const teamMatches = matches.filter(match => match.team1Id === teamId || match.team2Id === teamId);
+
+    if (teamMatches.length === 0) {
+      return { attack: 1.2, defense: 1.2, form: 0 };
+    }
+
+    let goalsFor = 0;
+    let goalsAgainst = 0;
+    let formScore = 0;
+
+    teamMatches.forEach(match => {
+      const isTeam1 = match.team1Id === teamId;
+      const scored = isTeam1 ? match.scoreTeam1 : match.scoreTeam2;
+      const conceded = isTeam1 ? match.scoreTeam2 : match.scoreTeam1;
+
+      goalsFor += scored;
+      goalsAgainst += conceded;
+
+      if (scored > conceded) {
+        formScore += 1;
+      } else if (scored === conceded) {
+        formScore += 0.4;
+      } else {
+        formScore -= 0.35;
+      }
+    });
+
+    const matchesCount = teamMatches.length;
+    return {
+      attack: goalsFor / matchesCount || 1.2,
+      defense: goalsAgainst / matchesCount || 1.2,
+      form: formScore / matchesCount
+    };
   }
 }

@@ -3,6 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FeuillesDeMatchService } from '../../services/statistiques.service';
 import { FeuillesDeMatch, RecapEquipe } from '../../models/statistiques.model';
+import { EventService } from '../../services/event.service';
+import { MatchService } from '../../services/match.service';
+import { Event } from '../../models/event.model';
+import { Match } from '../../models/match.model';
 
 @Component({
   selector: 'app-feuillesdematch',
@@ -14,14 +18,55 @@ import { FeuillesDeMatch, RecapEquipe } from '../../models/statistiques.model';
 export class FeuillesDeMatchComponent implements OnInit {
   feuillesDeMatch: FeuillesDeMatch[] = [];
   selectedFeuille: FeuillesDeMatch | null = null;
+  selectedMatch: Match | null = null;
+  events: Event[] = [];
+  matches: Match[] = [];
   matchId: string = '';
   loading: boolean = false;
   error: string = '';
 
-  constructor(private feuillesDeMatchService: FeuillesDeMatchService) {}
+  constructor(
+    private feuillesDeMatchService: FeuillesDeMatchService,
+    private eventService: EventService,
+    private matchService: MatchService
+  ) {}
 
   ngOnInit(): void {
     this.loadAllFeuillesDeMatch();
+    this.loadEvents();
+    this.loadMatches();
+  }
+
+  loadEvents(): void {
+    this.eventService.getEvents().subscribe({
+      next: (data) => {
+        this.events = data;
+        if (!this.selectedFeuille && this.feuillesDeMatch.length > 0) {
+          this.selectedFeuille = this.feuillesDeMatch[0];
+          this.syncSelectedMatch(this.selectedFeuille.matchId);
+        }
+      },
+      error: () => {
+        this.events = [];
+      }
+    });
+  }
+
+  loadMatches(): void {
+    this.matchService.getMatches().subscribe({
+      next: (data) => {
+        this.matches = data;
+        if (this.selectedFeuille) {
+          this.syncSelectedMatch(this.selectedFeuille.matchId);
+        } else if (this.feuillesDeMatch.length > 0) {
+          this.selectedFeuille = this.feuillesDeMatch[0];
+          this.syncSelectedMatch(this.selectedFeuille.matchId);
+        }
+      },
+      error: () => {
+        this.matches = [];
+      }
+    });
   }
 
   loadAllFeuillesDeMatch(): void {
@@ -30,7 +75,13 @@ export class FeuillesDeMatchComponent implements OnInit {
     this.feuillesDeMatchService.getAll().subscribe({
       next: (data) => {
         this.feuillesDeMatch = data;
+        if (!this.selectedFeuille && data.length > 0) {
+          this.selectedFeuille = data[0];
+        }
         this.loading = false;
+        if (this.selectedFeuille) {
+          this.syncSelectedMatch(this.selectedFeuille.matchId);
+        }
       },
       error: (err) => {
         this.error = 'Erreur lors du chargement des feuilles de match';
@@ -51,6 +102,7 @@ export class FeuillesDeMatchComponent implements OnInit {
     this.feuillesDeMatchService.getByMatchId(this.matchId).subscribe({
       next: (data) => {
         this.selectedFeuille = data;
+        this.syncSelectedMatch(data.matchId);
         this.loading = false;
       },
       error: (err) => {
@@ -63,6 +115,29 @@ export class FeuillesDeMatchComponent implements OnInit {
 
   selectFeuille(feuille: FeuillesDeMatch): void {
     this.selectedFeuille = feuille;
+    this.syncSelectedMatch(feuille.matchId);
+  }
+
+  getMatchLabel(matchId: string): string {
+    const match = this.matches.find(item => item.id === matchId);
+    if (!match) return `Match #${matchId}`;
+    const eventName = this.getEventName(match.eventId);
+    return `${match.team1Id} vs ${match.team2Id} • ${match.sportId} • ${eventName}`;
+  }
+
+  getMatchSubtitle(matchId: string): string {
+    const match = this.matches.find(item => item.id === matchId);
+    if (!match) return 'Données du match non disponibles';
+    return `${match.date} ${match.heure} • ${match.terrainId}`;
+  }
+
+  getEventName(eventId?: string): string {
+    if (!eventId) return 'Sans événement';
+    return this.events.find(event => event.id === eventId)?.nom || eventId;
+  }
+
+  private syncSelectedMatch(matchId: string): void {
+    this.selectedMatch = this.matches.find(item => item.id === matchId) || null;
   }
 
   getTeamScore(teamId: string): number {

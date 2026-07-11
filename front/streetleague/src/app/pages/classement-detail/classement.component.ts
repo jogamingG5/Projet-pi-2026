@@ -3,6 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ClassementService } from '../../services/statistiques.service';
 import { Classement, ClassementEntry } from '../../models/statistiques.model';
+import { EventService } from '../../services/event.service';
+import { MatchService } from '../../services/match.service';
+import { Event } from '../../models/event.model';
+import { Match } from '../../models/match.model';
 
 @Component({
   selector: 'app-classement',
@@ -13,6 +17,8 @@ import { Classement, ClassementEntry } from '../../models/statistiques.model';
 })
 export class ClassementComponent implements OnInit {
   classements: Classement[] = [];
+  events: Event[] = [];
+  matches: Match[] = [];
   selectedClassement: Classement | null = null;
   eventId: string = '';
   sportId: string = '';
@@ -21,10 +27,16 @@ export class ClassementComponent implements OnInit {
 
   medalColors = ['gold', 'silver', '#CD7F32']; // Or, Argent, Bronze
 
-  constructor(private classementService: ClassementService) {}
+  constructor(
+    private classementService: ClassementService,
+    private eventService: EventService,
+    private matchService: MatchService
+  ) {}
 
   ngOnInit(): void {
     this.loadAllClassements();
+    this.loadEvents();
+    this.loadMatches();
   }
 
   loadAllClassements(): void {
@@ -42,6 +54,34 @@ export class ClassementComponent implements OnInit {
         this.error = 'Erreur lors du chargement des classements';
         console.error(err);
         this.loading = false;
+      }
+    });
+  }
+
+  loadEvents(): void {
+    this.eventService.getEvents().subscribe({
+      next: (data) => {
+        this.events = data;
+        if (!this.eventId && data.length > 0) {
+          this.eventId = data[0].id;
+        }
+      },
+      error: () => {
+        this.events = [];
+      }
+    });
+  }
+
+  loadMatches(): void {
+    this.matchService.getMatches().subscribe({
+      next: (data) => {
+        this.matches = data;
+        if (!this.selectedClassement && this.classements.length > 0) {
+          this.selectedClassement = this.classements[0];
+        }
+      },
+      error: () => {
+        this.matches = [];
       }
     });
   }
@@ -93,6 +133,27 @@ export class ClassementComponent implements OnInit {
 
   selectClassement(classement: Classement): void {
     this.selectedClassement = classement;
+  }
+
+  getEventName(eventId: string): string {
+    return this.events.find(event => event.id === eventId)?.nom || eventId;
+  }
+
+  getLinkedMatches(eventId: string): Match[] {
+    return this.matches.filter(match => match.eventId === eventId);
+  }
+
+  getSelectedEvent(): Event | null {
+    return this.events.find(event => event.id === this.selectedClassement?.eventId) || null;
+  }
+
+  getSelectedEventMatches(): Match[] {
+    const event = this.getSelectedEvent();
+    if (!event) {
+      return [];
+    }
+
+    return this.getLinkedMatches(event.id);
   }
 
   getTotalMatches(): number {

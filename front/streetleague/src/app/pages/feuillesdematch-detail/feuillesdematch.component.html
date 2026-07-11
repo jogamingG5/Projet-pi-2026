@@ -15,7 +15,10 @@
         <label class="label">ID du match</label>
         <div class="input-with-icon">
           <span class="input-icon">🎯</span>
-          <input class="input-field" type="text" placeholder="Ex: MATCH_01" [(ngModel)]="matchId" />
+          <input class="input-field" type="text" placeholder="Ex: match id existant" [(ngModel)]="matchId" list="match-id-options" />
+          <datalist id="match-id-options">
+            <option *ngFor="let match of matches" [value]="match.id"></option>
+          </datalist>
         </div>
       </div>
       <div class="input-group" style="justify-content:end;">
@@ -48,7 +51,7 @@
       >
         <div style="display:flex; justify-content:space-between; gap:1rem; margin-bottom:0.8rem;">
           <div>
-            <div style="font-weight:800; font-size:1.05rem;">Match #{{ feuille.matchId }}</div>
+            <div style="font-weight:800; font-size:1.05rem;">{{ getMatchLabel(feuille.matchId) }}</div>
             <div class="page-subtitle" style="font-size:0.82rem;" *ngIf="feuille.dateMatch">{{ feuille.dateMatch | date: 'short' }}</div>
           </div>
           <span class="badge badge-primary">{{ getTeamScore(feuille.recap[0]?.teamId || '') }} - {{ getTeamScore(feuille.recap[1]?.teamId || '') }}</span>
@@ -62,10 +65,34 @@
     <div class="dashboard-card" style="padding:1.25rem;">
       <div style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; align-items:start;">
         <div>
-          <h2 class="page-title" style="font-size:1.8rem; margin-bottom:0.35rem;">Match #{{ selectedFeuille.matchId }}</h2>
+          <h2 class="page-title" style="font-size:1.8rem; margin-bottom:0.35rem;">{{ getMatchLabel(selectedFeuille.matchId) }}</h2>
           <p class="page-subtitle" *ngIf="selectedFeuille.dateMatch">{{ selectedFeuille.dateMatch | date: 'long' }}</p>
+          <p class="page-subtitle" *ngIf="selectedMatch">{{ getMatchSubtitle(selectedFeuille.matchId) }}</p>
+          <p class="page-subtitle" *ngIf="selectedMatch">Événement: {{ getEventName(selectedMatch.eventId) }}</p>
         </div>
         <button class="btn btn-secondary" type="button" (click)="exportToPDF()">📥 Export PDF</button>
+      </div>
+    </div>
+
+    <div *ngIf="selectedMatch" class="dashboard-card" style="padding:1.25rem;">
+      <h3 class="section-title">🧩 Contexte du match</h3>
+      <div class="grid grid-3">
+        <div class="card">
+          <div class="label">Sport</div>
+          <div style="font-weight:800;">{{ selectedMatch.sportId }}</div>
+        </div>
+        <div class="card">
+          <div class="label">Événement</div>
+          <div style="font-weight:800;">{{ getEventName(selectedMatch.eventId) }}</div>
+        </div>
+        <div class="card">
+          <div class="label">Équipe 1</div>
+          <div style="font-weight:800;">{{ selectedMatch.team1Id }}</div>
+        </div>
+        <div class="card">
+          <div class="label">Équipe 2</div>
+          <div style="font-weight:800;">{{ selectedMatch.team2Id }}</div>
+        </div>
       </div>
     </div>
 

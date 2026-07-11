@@ -10,6 +10,20 @@ import { ConfirmDialogComponent } from '../../components/confirm-dialog.componen
 import { ToastContainerComponent } from '../../components/toast.component';
 import { MatchModalComponent } from './match-modal.component';
 
+interface MatchPrediction {
+  matchId: string;
+  eventName: string;
+  scoreTeam1: number;
+  scoreTeam2: number;
+  confidence: number;
+  probabilities: {
+    team1: number;
+    draw: number;
+    team2: number;
+  };
+  rationale: string[];
+}
+
 @Component({
   selector: 'app-match-list',
   standalone: true,
@@ -41,6 +55,7 @@ export class MatchListComponent implements OnInit {
   matchToDelete = signal<string | null>(null);
   showModal = signal(false);
   selectedMatch = signal<Match | null>(null);
+  selectedPrediction = signal<MatchPrediction | null>(null);
 
   filters: (MatchStatus | 'ALL')[] = ['ALL', 'SCHEDULED', 'ONGOING', 'COMPLETED', 'CANCELLED'];
 
@@ -117,6 +132,22 @@ export class MatchListComponent implements OnInit {
     this.selectedDate.set('');
   }
 
+  togglePrediction(match: Match): void {
+    this.selectedMatch.set(match);
+
+    const current = this.selectedPrediction();
+    if (current?.matchId === match.id) {
+      this.selectedPrediction.set(null);
+      return;
+    }
+
+    this.selectedPrediction.set(this.buildPrediction(match));
+  }
+
+  closePrediction(): void {
+    this.selectedPrediction.set(null);
+  }
+
   availableTeamSuggestions(): string[] {
     const selectedEvent = this.events().find(event => event.id === this.selectedMatch()?.eventId);
     const sport = this.selectedMatch()?.sportId;
@@ -149,6 +180,14 @@ export class MatchListComponent implements OnInit {
   availableEventSuggestions(): Event[] {
     const sport = this.selectedMatch()?.sportId;
     return this.events().filter(event => !sport || event.sportId === sport);
+  }
+
+  getEventName(match: Match): string {
+    return this.events().find(event => event.id === match.eventId)?.nom || match.eventId || 'No event';
+  }
+
+  getPredictionFor(match: Match): MatchPrediction {
+    return this.buildPrediction(match);
   }
 
   openModal(match?: Match): void {
@@ -248,6 +287,114 @@ export class MatchListComponent implements OnInit {
 
   formatTime(timeString: string): string {
     return timeString; // Already in HH:mm format
+  }
+
+  private buildPrediction(match: Match): MatchPrediction {
+    const sameSportMatches = this.matches().filter(item => item.sportId === match.sportId);
+    const completedMatches = sameSportMatches.filter(item => item.status === 'COMPLETED' && Number.isFinite(item.scoreTeam1) && Number.isFinite(item.scoreTeam2));
+    const relevantMatches = completedMatches.length >= 3 ? completedMatches : sameSportMatches.filter(item => Number.isFinite(item.scoreTeam1) && Number.isFinite(item.scoreTeam2));
+
+    const team1Stats = this.getTeamStats(relevantMatches, match.team1Id);
+    const team2Stats = this.getTeamStats(relevantMatches, match.team2Id);
+
+    const event = this.events().find(item => item.id === match.eventId);
+    const eventBoost = event ? 0.15 : 0;
+
+    const expectedTeam1Goals = this.clamp(
+      (team1Stats.attack + team2Stats.defense) / 2 + team1Stats.form * 0.15 + eventBoost,
+      0,
+      5
+    );
+    const expectedTeam2Goals = this.clamp(
+      (team2Stats.attack + team1Stats.defense) / 2 + team2Stats.form * 0.15,
+      0,
+      5
+    );
+
+    const baseStrength1 = Math.max(0.1, expectedTeam1Goals + team1Stats.form * 0.35);
+    const baseStrength2 = Math.max(0.1, expectedTeam2Goals + team2Stats.form * 0.35);
+    const totalStrength = baseStrength1 + baseStrength2;
+    const diff = Math.abs(baseStrength1 - baseStrength2);
+
+    let drawPercent = this.clamp(33 - diff * 5 - (expectedTeam1Goals + expectedTeam2Goals - 2.5) * 2, 12, 38);
+    let remaining = 100 - drawPercent;
+    let team1Percent = remaining * (baseStrength1 / totalStrength);
+    let team2Percent = remaining - team1Percent;
+
+    team1Percent = this.clamp(team1Percent, 8, 88);
+    team2Percent = this.clamp(team2Percent, 8, 88);
+
+    const normalizedTotal = team1Percent + drawPercent + team2Percent;
+    if (normalizedTotal !== 100) {
+      const delta = 100 - normalizedTotal;
+      team1Percent += delta;
+    }
+
+    const predictedScoreTeam1 = this.roundScore(expectedTeam1Goals);
+    const predictedScoreTeam2 = this.roundScore(expectedTeam2Goals);
+    const confidence = this.clamp(58 + Math.abs(team1Percent - team2Percent) * 0.45 + eventBoost * 100, 55, 92);
+
+    return {
+      matchId: match.id,
+      eventName: event?.nom || match.eventId || 'No event',
+      scoreTeam1: predictedScoreTeam1,
+      scoreTeam2: predictedScoreTeam2,
+      confidence,
+      probabilities: {
+        team1: Math.round(team1Percent),
+        draw: Math.round(drawPercent),
+        team2: Math.round(team2Percent)
+      },
+      rationale: [
+        `Sport: ${match.sportId}`,
+        `Recent form: ${team1Stats.form.toFixed(1)} vs ${team2Stats.form.toFixed(1)}`,
+        event ? `Event boost from ${event.nom}` : 'No linked event found'
+      ]
+    };
+  }
+
+  private getTeamStats(matches: Match[], teamId: string): { attack: number; defense: number; form: number } {
+    const teamMatches = matches.filter(match => match.team1Id === teamId || match.team2Id === teamId);
+
+    if (teamMatches.length === 0) {
+      return { attack: 1.2, defense: 1.2, form: 0 };
+    }
+
+    let goalsFor = 0;
+    let goalsAgainst = 0;
+    let formScore = 0;
+
+    teamMatches.forEach(match => {
+      const isTeam1 = match.team1Id === teamId;
+      const scored = isTeam1 ? match.scoreTeam1 : match.scoreTeam2;
+      const conceded = isTeam1 ? match.scoreTeam2 : match.scoreTeam1;
+
+      goalsFor += scored;
+      goalsAgainst += conceded;
+
+      if (scored > conceded) {
+        formScore += 1;
+      } else if (scored === conceded) {
+        formScore += 0.4;
+      } else {
+        formScore -= 0.35;
+      }
+    });
+
+    const matchesCount = teamMatches.length;
+    return {
+      attack: goalsFor / matchesCount || 1.2,
+      defense: goalsAgainst / matchesCount || 1.2,
+      form: formScore / matchesCount
+    };
+  }
+
+  private roundScore(value: number): number {
+    return Math.max(0, Math.min(6, Math.round(value)));
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
   }
 
   private normalizeDate(dateValue: any): string {

@@ -64,7 +64,7 @@
         <div style="display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.8rem; align-items:start;">
           <div>
             <p class="label">Événement</p>
-            <strong>{{ c.eventId }}</strong>
+            <strong>{{ getEventName(c.eventId) }}</strong>
           </div>
           <span class="badge badge-primary">{{ c.classements.length }} équipes</span>
         </div>
@@ -78,9 +78,31 @@
       <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: start;">
         <div>
           <h2 class="page-title" style="font-size: 1.8rem; margin-bottom: 0.4rem;">Classement {{ selectedClassement.sportId }}</h2>
-          <p class="page-subtitle">Événement: {{ selectedClassement.eventId }}</p>
+          <p class="page-subtitle">Événement: {{ getEventName(selectedClassement.eventId) }}</p>
         </div>
         <div class="badge badge-neutral">{{ selectedClassement.classements.length }} équipes classées</div>
+      </div>
+    </div>
+
+    <div *ngIf="getSelectedEvent()" class="dashboard-card" style="padding: 1.25rem;">
+      <div style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; align-items:start; margin-bottom:1rem;">
+        <div>
+          <h3 class="section-title">Matchs liés à l'événement</h3>
+          <p class="page-subtitle">{{ getSelectedEvent()?.nom }} • {{ getSelectedEvent()?.sportId }}</p>
+        </div>
+        <span class="badge badge-primary">{{ getSelectedEventMatches().length }} matchs</span>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card" *ngFor="let match of getSelectedEventMatches()" style="text-align:left;">
+          <div style="font-weight:800; margin-bottom:0.35rem;">{{ match.team1Id }} vs {{ match.team2Id }}</div>
+          <div class="page-subtitle" style="font-size:0.82rem;">{{ match.date }} • {{ match.heure }}</div>
+          <div class="page-subtitle" style="font-size:0.82rem;">Terrain: {{ match.terrainId }}</div>
+        </div>
+        <div class="card" *ngIf="getSelectedEventMatches().length === 0">
+          <div style="font-weight:800;">Aucun match lié</div>
+          <div class="page-subtitle" style="font-size:0.82rem;">Aucun match trouvé pour cet événement</div>
+        </div>
       </div>
     </div>
 
